@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-02-18T00:00:00Z",
+  "projects": [
+    {
+      "name": "example-channel",
+      "source_url": "https://www.youtube.com/@example/videos",
+      "active": true,
+      "profile": "default",
+      "workers": 5,
+      "fragments": 10,
+      "order": "oldest",
+      "quality": "best",
+      "delivery_mode": "auto",
+      "sub_langs": "english"
+    }
+  ]
+}

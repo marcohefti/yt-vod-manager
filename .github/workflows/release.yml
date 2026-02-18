@@ -1,0 +1,76 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release artifacts
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          BIN_NAME="yt-vod-manager"
+          DIST_DIR="dist"
+          mkdir -p "${DIST_DIR}"
+
+          targets=(
+            "darwin amd64 tar.gz"
+            "darwin arm64 tar.gz"
+            "linux amd64 tar.gz"
+            "linux arm64 tar.gz"
+            "windows amd64 zip"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r GOOS GOARCH ARCHIVE <<<"${target}"
+            EXE=""
+            if [[ "${GOOS}" == "windows" ]]; then
+              EXE=".exe"
+            fi
+
+            PACKAGE_BASE="${BIN_NAME}_${VERSION}_${GOOS}_${GOARCH}"
+            STAGE_DIR="${DIST_DIR}/${PACKAGE_BASE}"
+
+            mkdir -p "${STAGE_DIR}"
+            CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" \
+              go build -trimpath -o "${STAGE_DIR}/${BIN_NAME}${EXE}" ./cmd/yt-vod-manager
+
+            cp README.md LICENSE "${STAGE_DIR}/"
+
+            if [[ "${ARCHIVE}" == "zip" ]]; then
+              (cd "${DIST_DIR}" && zip -rq "${PACKAGE_BASE}.zip" "${PACKAGE_BASE}")
+            else
+              tar -C "${DIST_DIR}" -czf "${DIST_DIR}/${PACKAGE_BASE}.tar.gz" "${PACKAGE_BASE}"
+            fi
+
+            rm -rf "${STAGE_DIR}"
+          done
+
+          CHECKSUM_FILE="${DIST_DIR}/${BIN_NAME}_${VERSION}_checksums.txt"
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd "${DIST_DIR}" && sha256sum "${BIN_NAME}_${VERSION}_"* > "$(basename "${CHECKSUM_FILE}")")
+          else
+            (cd "${DIST_DIR}" && shasum -a 256 "${BIN_NAME}_${VERSION}_"* > "$(basename "${CHECKSUM_FILE}")")
+          fi
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

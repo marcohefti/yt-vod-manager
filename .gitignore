@@ -1,0 +1,23 @@
+# Runtime/operator state
+runs/
+downloads/
+config/projects.json
+data/manifests/*.json
+!data/manifests/.gitkeep
+
+# Downloader/temp artifacts
+*.log
+*.part
+*.ytdl
+*.aria2
+
+# Build artifacts
+bin/
+dist/
+yt-archive
+
+# Local/editor noise
+.tmp/
+.DS_Store
+.vscode/
+.idea/

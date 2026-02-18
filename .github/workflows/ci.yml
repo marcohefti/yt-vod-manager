@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Go tests
+        run: go test ./...
+
+      - name: Architecture boundaries
+        run: go run ./scripts/check_arch_boundaries.go
+
+      - name: Documentation checks
+        run: ./scripts/check_docs.sh
+
+      - name: Golden rules
+        run: ./scripts/check_golden_rules.sh
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest

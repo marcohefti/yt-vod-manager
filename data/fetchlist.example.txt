@@ -1,0 +1,5 @@
+# yt-vod-manager fetchlist
+# One source URL per line. Blank lines and lines starting with # are ignored.
+
+Example Channel|https://www.youtube.com/@channel_handle/videos
+https://www.youtube.com/playlist?list=PLFs19LVskfNzQLZkGG_zf6yfYTp_3v_e6

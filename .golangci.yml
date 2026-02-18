@@ -1,0 +1,71 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - depguard
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  depguard:
+    rules:
+      cli-boundary:
+        files:
+          - "internal/cli/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/ytdlp"
+            desc: "cli must call through discovery/archive"
+          - pkg: "yt-vod-manager/internal/runstore"
+            desc: "cli must not persist state directly"
+          - pkg: "yt-vod-manager/internal/model"
+            desc: "cli must not mutate model directly"
+      discovery-boundary:
+        files:
+          - "internal/discovery/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/archive"
+            desc: "discovery must not import archive execution layer"
+          - pkg: "yt-vod-manager/internal/cli"
+            desc: "discovery must not import cli"
+      archive-boundary:
+        files:
+          - "internal/archive/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/discovery"
+            desc: "archive must not import discovery"
+          - pkg: "yt-vod-manager/internal/cli"
+            desc: "archive must not import cli"
+      model-boundary:
+        files:
+          - "internal/model/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/archive"
+            desc: "model is a leaf package"
+          - pkg: "yt-vod-manager/internal/cli"
+            desc: "model is a leaf package"
+          - pkg: "yt-vod-manager/internal/discovery"
+            desc: "model is a leaf package"
+      runstore-boundary:
+        files:
+          - "internal/runstore/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/archive"
+            desc: "runstore is a leaf package"
+          - pkg: "yt-vod-manager/internal/cli"
+            desc: "runstore is a leaf package"
+          - pkg: "yt-vod-manager/internal/discovery"
+            desc: "runstore is a leaf package"
+      ytdlp-boundary:
+        files:
+          - "internal/ytdlp/**/*.go"
+        deny:
+          - pkg: "yt-vod-manager/internal/archive"
+            desc: "ytdlp is a leaf integration package"
+          - pkg: "yt-vod-manager/internal/cli"
+            desc: "ytdlp is a leaf integration package"
+          - pkg: "yt-vod-manager/internal/discovery"
+            desc: "ytdlp is a leaf integration package"
