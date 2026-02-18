@@ -241,7 +241,10 @@ npm install -g @marcohefti/yt-vod-manager
 
 For automation in GitHub Actions:
 - set `HOMEBREW_TAP_GITHUB_TOKEN` (repo write access to `marcohefti/homebrew-yt-vod-manager`)
-- set `NPM_TOKEN` (publish token for npm)
+- configure npm Trusted Publisher for `@marcohefti/yt-vod-manager`:
+  - owner: `marcohefti`
+  - repository: `yt-vod-manager`
+  - workflow file: `.github/workflows/release.yml`
 
 ## License
 
