@@ -1,7 +1,5 @@
 # Reliability
 
-Last Reviewed: 2026-02-18
-
 ## Reliability Objectives
 
 - Resume safely after interruption without losing completed work.
@@ -40,7 +38,6 @@ Last Reviewed: 2026-02-18
 
 - `go test ./...`
 - `go run ./scripts/check_arch_boundaries.go`
-- `./scripts/check_docs.sh`
 
 ## Next Reliability Milestones
 

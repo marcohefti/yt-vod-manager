@@ -1,7 +1,5 @@
 # Golden Rules
 
-Last Reviewed: 2026-02-18
-
 These rules are intentionally strict and machine-checked.
 
 ## Rule 1: No direct process execution outside `internal/ytdlp`

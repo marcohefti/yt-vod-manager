@@ -1,7 +1,5 @@
 # Architecture
 
-Last Reviewed: 2026-02-18
-
 ## Purpose
 
 `yt-vod-manager` is a stateful YouTube VOD archive manager. It turns source URLs into long-lived, resumable runs with deterministic job state and now exposes a project-first operator layer.

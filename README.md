@@ -1,14 +1,23 @@
 # yt-vod-manager
 
-Project-first YouTube archive manager for channels and playlists.
+A CLI app to download YouTube channels and playlists and keep them up to date locally.
 
-It is built for operators who want long-running, resumable sync with clear terminal workflows.
+It gives you simple daily commands, safe progress tracking, and optional background sync.
 
-## 2-Minute Quick Start
+## Quick Start
 
-1. Install runtime dependencies:
-- `yt-dlp`
-- `ffmpeg`
+1. Install dependencies (`yt-dlp`, `ffmpeg`, and `go` if you build locally):
+
+```bash
+# macOS (Homebrew)
+brew install yt-dlp ffmpeg go
+```
+
+```bash
+# Ubuntu/Debian example
+sudo apt update
+sudo apt install -y yt-dlp ffmpeg golang-go
+```
 
 2. Build binary:
 
@@ -22,7 +31,7 @@ go build -o bin/yt-vod-manager ./cmd/yt-vod-manager
 ./bin/yt-vod-manager init
 ```
 
-4. Add one or more projects:
+4. Add one or more sources:
 
 ```bash
 ./bin/yt-vod-manager add --name mkbhd --source "https://www.youtube.com/@mkbhd/videos"
@@ -61,9 +70,9 @@ Think in three layers:
 3. Sync cycle
 - `sync` does: refresh source from YouTube every run -> merge by `video_id` -> download pending/retryable jobs.
 
-This means you can stop and resume safely without losing completed work.
+This means you can stop and continue later without re-downloading completed videos.
 
-## Daily Commands
+## Common Commands
 
 - List configured projects:
 
@@ -130,7 +139,7 @@ The manager auto-adapts layout for narrow and wide terminals.
 - `--cookies /path/to/cookies.txt` use authenticated access.
 - `--json` print machine-readable output.
 
-## Project Config
+## Configuration
 
 Default config path: `config/projects.json`
 
@@ -141,7 +150,7 @@ Managed by:
 - `add`
 - `remove`
 
-Project entries can store defaults like workers/fragments/order/cookies/subtitle options.
+Each saved source can keep defaults like workers/fragments/order/cookies/subtitle options.
 
 ## Output Layout
 
@@ -153,7 +162,7 @@ Project entries can store defaults like workers/fragments/order/cookies/subtitle
   - `run.json`
 - Downloaded media (default): `runs/<run_id>/downloads/`
 
-## Advanced Commands
+## Advanced Commands (Technical)
 
 Most users only need `init/add/list/sync/status/remove`.
 
@@ -182,8 +191,8 @@ For `refresh` and `run`, target selection is explicit and safer:
 
 `sync` is safe for background execution. Use `scripts/sync-active.sh` (includes locking and `--active-only` defaults).
 
-- macOS (`launchd`): create `~/Library/LaunchAgents/ch.hefti.yt-vod-manager-sync.plist` that runs `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `launchctl load ~/Library/LaunchAgents/ch.hefti.yt-vod-manager-sync.plist`.
-- Unix (`systemd --user`): create a `yt-vod-manager-sync.service` + `yt-vod-manager-sync.timer` that executes `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `systemctl --user enable --now yt-vod-manager-sync.timer`.
+- macOS (`launchd`): create `~/Library/LaunchAgents/com.marcohefti.yt-vod-manager-sync.plist` that runs `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `launchctl load ~/Library/LaunchAgents/com.marcohefti.yt-vod-manager-sync.plist`.
+- Unix (`systemd --user`): create a `marcohefti-yt-vod-manager-sync.service` + `marcohefti-yt-vod-manager-sync.timer` that executes `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `systemctl --user enable --now marcohefti-yt-vod-manager-sync.timer`.
 
 ## Dev Verification
 
@@ -191,7 +200,7 @@ For `refresh` and `run`, target selection is explicit and safer:
 ./scripts/verify.sh
 ```
 
-This runs tests, architecture checks, docs checks, linting, and build.
+This runs tests, architecture checks, linting, and build.
 
 ## Releases
 

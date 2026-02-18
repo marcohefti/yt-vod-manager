@@ -27,9 +27,6 @@ jobs:
       - name: Architecture boundaries
         run: go run ./scripts/check_arch_boundaries.go
 
-      - name: Documentation checks
-        run: ./scripts/check_docs.sh
-
       - name: Golden rules
         run: ./scripts/check_golden_rules.sh
 

@@ -1,7 +1,5 @@
 # Security
 
-Last Reviewed: 2026-02-18
-
 ## Threat Model (Current Scope)
 
 - Local operator workstation usage.

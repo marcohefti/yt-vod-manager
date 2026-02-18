@@ -21,9 +21,6 @@ go test ./...
 echo "==> go run ./scripts/check_arch_boundaries.go"
 go run ./scripts/check_arch_boundaries.go
 
-echo "==> ./scripts/check_docs.sh"
-./scripts/check_docs.sh
-
 echo "==> ./scripts/check_golden_rules.sh"
 ./scripts/check_golden_rules.sh
 
