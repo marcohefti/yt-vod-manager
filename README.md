@@ -2,12 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/marcohefti/yt-vod-manager?sort=semver)](https://github.com/marcohefti/yt-vod-manager/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/marcohefti/yt-vod-manager/ci.yml?branch=main&label=ci)](https://github.com/marcohefti/yt-vod-manager/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/%40marcohefti%2Fyt-vod-manager?logo=npm)](https://www.npmjs.com/package/@marcohefti/yt-vod-manager)
 [![npm downloads](https://img.shields.io/npm/dm/%40marcohefti%2Fyt-vod-manager?logo=npm)](https://www.npmjs.com/package/@marcohefti/yt-vod-manager)
-[![Homebrew Tap](https://img.shields.io/badge/homebrew-marcohefti%2Fyt--vod--manager-FBB040?logo=homebrew)](https://github.com/marcohefti/homebrew-yt-vod-manager)
-[![GitHub downloads](https://img.shields.io/github/downloads/marcohefti/yt-vod-manager/total)](https://github.com/marcohefti/yt-vod-manager/releases)
-[![Go version](https://img.shields.io/github/go-mod/go-version/marcohefti/yt-vod-manager)](https://github.com/marcohefti/yt-vod-manager/blob/main/go.mod)
-[![Repo size](https://img.shields.io/github/repo-size/marcohefti/yt-vod-manager)](https://github.com/marcohefti/yt-vod-manager)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A CLI app to download YouTube channels and playlists and keep them up to date locally.
