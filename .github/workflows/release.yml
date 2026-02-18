@@ -148,26 +148,30 @@ jobs:
           body_path: dist/RELEASE_NOTES.md
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
 
-      - name: Publish npm package
-        if: ${{ steps.meta.outputs.stable == 'true' && secrets.NPM_TOKEN != '' }}
+      - name: Setup Node for npm publish
+        if: ${{ steps.meta.outputs.stable == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
       - name: npm publish
-        if: ${{ steps.meta.outputs.stable == 'true' && secrets.NPM_TOKEN != '' }}
+        if: ${{ steps.meta.outputs.stable == 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
         run: |
           set -euo pipefail
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "NPM_TOKEN is not set; skipping npm publish."
+            exit 0
+          fi
           cd packaging/npm
           npm version --no-git-tag-version "${VERSION_NO_V}"
           npm publish --access public
 
       - name: Update Homebrew tap
-        if: ${{ steps.meta.outputs.stable == 'true' && secrets.HOMEBREW_TAP_GITHUB_TOKEN != '' }}
+        if: ${{ steps.meta.outputs.stable == 'true' }}
         env:
           VERSION: ${{ steps.meta.outputs.version }}
           VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
@@ -175,6 +179,10 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          if [[ -z "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]]; then
+            echo "HOMEBREW_TAP_GITHUB_TOKEN is not set; skipping Homebrew tap update."
+            exit 0
+          fi
 
           DARWIN_AMD64_FILE="yt-vod-manager_${VERSION}_darwin_amd64.tar.gz"
           DARWIN_ARM64_FILE="yt-vod-manager_${VERSION}_darwin_arm64.tar.gz"
