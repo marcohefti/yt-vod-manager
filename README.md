@@ -1,60 +1,79 @@
 # yt-vod-manager
 
+[![Release](https://img.shields.io/github/v/release/marcohefti/yt-vod-manager?sort=semver)](https://github.com/marcohefti/yt-vod-manager/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/marcohefti/yt-vod-manager/ci.yml?branch=main&label=ci)](https://github.com/marcohefti/yt-vod-manager/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/%40marcohefti%2Fyt-vod-manager?logo=npm)](https://www.npmjs.com/package/@marcohefti/yt-vod-manager)
+[![npm downloads](https://img.shields.io/npm/dm/%40marcohefti%2Fyt-vod-manager?logo=npm)](https://www.npmjs.com/package/@marcohefti/yt-vod-manager)
+[![Homebrew Tap](https://img.shields.io/badge/homebrew-marcohefti%2Fyt--vod--manager-FBB040?logo=homebrew)](https://github.com/marcohefti/homebrew-yt-vod-manager)
+[![GitHub downloads](https://img.shields.io/github/downloads/marcohefti/yt-vod-manager/total)](https://github.com/marcohefti/yt-vod-manager/releases)
+[![Go version](https://img.shields.io/github/go-mod/go-version/marcohefti/yt-vod-manager)](https://github.com/marcohefti/yt-vod-manager/blob/main/go.mod)
+[![Repo size](https://img.shields.io/github/repo-size/marcohefti/yt-vod-manager)](https://github.com/marcohefti/yt-vod-manager)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A CLI app to download YouTube channels and playlists and keep them up to date locally.
 
 It gives you simple daily commands, safe progress tracking, and optional background sync.
 
 ## Quick Start
 
-1. Install dependencies (`yt-dlp`, `ffmpeg`, and `go` if you build locally):
+1. Install runtime dependencies (`yt-dlp` and `ffmpeg`):
 
 ```bash
 # macOS (Homebrew)
-brew install yt-dlp ffmpeg go
+brew install yt-dlp ffmpeg
 ```
 
 ```bash
 # Ubuntu/Debian example
 sudo apt update
-sudo apt install -y yt-dlp ffmpeg golang-go
+sudo apt install -y yt-dlp ffmpeg
 ```
 
-2. Build binary:
+2. Install `yt-vod-manager` (pick one):
+
+Homebrew:
 
 ```bash
-go build -o bin/yt-vod-manager ./cmd/yt-vod-manager
+brew tap marcohefti/yt-vod-manager
+brew install yt-vod-manager
+```
+
+npm:
+
+```bash
+npm install -g @marcohefti/yt-vod-manager
 ```
 
 3. Initialize workspace:
 
 ```bash
-./bin/yt-vod-manager init
+yt-vod-manager init
 ```
 
 4. Add one or more sources:
 
 ```bash
-./bin/yt-vod-manager add --name mkbhd --source "https://www.youtube.com/@mkbhd/videos"
-./bin/yt-vod-manager add --name my-playlist --source "https://www.youtube.com/playlist?list=PLFs19LVskfNzQLZkGG_zf6yfYTp_3v_e6"
+yt-vod-manager add --name mkbhd --source "https://www.youtube.com/@mkbhd/videos"
+yt-vod-manager add --name my-playlist --source "https://www.youtube.com/playlist?list=PLFs19LVskfNzQLZkGG_zf6yfYTp_3v_e6"
 ```
 
 5. Sync all projects:
 
 ```bash
-./bin/yt-vod-manager sync --all-projects
+yt-vod-manager sync --all-projects
 ```
 
 6. Check status:
 
 ```bash
-./bin/yt-vod-manager status --all
+yt-vod-manager status --all
 ```
 
 If you see `no projects configured`, start with:
 
 ```bash
-./bin/yt-vod-manager init
-./bin/yt-vod-manager add --source "<url>"
+yt-vod-manager init
+yt-vod-manager add --source "<url>"
 ```
 
 ## How It Works
@@ -77,13 +96,13 @@ This means you can stop and continue later without re-downloading completed vide
 - List configured projects:
 
 ```bash
-./bin/yt-vod-manager list
+yt-vod-manager list
 ```
 
 - Open interactive manager (arrow keys + wizard):
 
 ```bash
-./bin/yt-vod-manager manage
+yt-vod-manager manage
 ```
 
 Manager controls:
@@ -101,25 +120,25 @@ The manager auto-adapts layout for narrow and wide terminals.
 - Sync one project:
 
 ```bash
-./bin/yt-vod-manager sync --project mkbhd
+yt-vod-manager sync --project mkbhd
 ```
 
 - Sync all projects:
 
 ```bash
-./bin/yt-vod-manager sync --all-projects
+yt-vod-manager sync --all-projects
 ```
 
 - Refresh manifests only (no download):
 
 ```bash
-./bin/yt-vod-manager sync --all-projects --no-run
+yt-vod-manager sync --all-projects --no-run
 ```
 
 - Remove a project:
 
 ```bash
-./bin/yt-vod-manager remove --name my-playlist --yes
+yt-vod-manager remove --name my-playlist --yes
 ```
 
 ## Useful Options
@@ -193,6 +212,35 @@ For `refresh` and `run`, target selection is explicit and safer:
 
 - macOS (`launchd`): create `~/Library/LaunchAgents/com.marcohefti.yt-vod-manager-sync.plist` that runs `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `launchctl load ~/Library/LaunchAgents/com.marcohefti.yt-vod-manager-sync.plist`.
 - Unix (`systemd --user`): create a `marcohefti-yt-vod-manager-sync.service` + `marcohefti-yt-vod-manager-sync.timer` that executes `/absolute/path/to/yt-vod-manager/scripts/sync-active.sh`, then `systemctl --user enable --now marcohefti-yt-vod-manager-sync.timer`.
+
+## Local Build (From Source)
+
+If you want to build locally instead of using npm/Homebrew:
+
+1. Install dependencies (`yt-dlp`, `ffmpeg`, and `go`):
+
+```bash
+# macOS (Homebrew)
+brew install yt-dlp ffmpeg go
+```
+
+```bash
+# Ubuntu/Debian example
+sudo apt update
+sudo apt install -y yt-dlp ffmpeg golang-go
+```
+
+2. Build:
+
+```bash
+go build -o bin/yt-vod-manager ./cmd/yt-vod-manager
+```
+
+3. Run:
+
+```bash
+./bin/yt-vod-manager init
+```
 
 ## Dev Verification
 
