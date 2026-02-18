@@ -12,8 +12,8 @@ data/manifests/*.json
 *.aria2
 
 # Build artifacts
-bin/
-dist/
+/bin/
+/dist/
 yt-archive
 
 # Local/editor noise
