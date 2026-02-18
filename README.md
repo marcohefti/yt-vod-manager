@@ -206,8 +206,9 @@ This runs tests, architecture checks, linting, and build.
 
 GitHub Releases are built automatically via `.github/workflows/release.yml`:
 
-- push to `main` -> prerelease snapshot (`main-<sha>`)
+- push to `main` -> versioned prerelease snapshot (`v0.1.0-dev.<run>` initially; after `vX.Y.Z`, next snapshots use `vX.Y.(Z+1)-dev.<run>`)
 - push version tag `v*` -> normal versioned release
+- each release includes a changelog generated from commits since the previous release tag
 
 Create a release tag:
 

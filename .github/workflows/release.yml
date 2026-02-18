@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -25,6 +27,15 @@ jobs:
         id: meta
         run: |
           set -euo pipefail
+          LATEST_STABLE_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1 || true)"
+          NEXT_DEV_BASE="0.1.0"
+          if [[ -n "${LATEST_STABLE_TAG}" ]] && [[ "${LATEST_STABLE_TAG}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            NEXT_DEV_BASE="${major}.${minor}.$((patch + 1))"
+          fi
+
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF_NAME}"
             PRERELEASE=false
@@ -32,15 +43,16 @@ jobs:
               PRERELEASE=true
             fi
             NAME="${TAG}"
+            VERSION="${TAG}"
           else
-            SHORT_SHA="${GITHUB_SHA::7}"
-            TAG="main-${SHORT_SHA}"
+            TAG="v${NEXT_DEV_BASE}-dev.${GITHUB_RUN_NUMBER}"
             PRERELEASE=true
-            NAME="main ${SHORT_SHA}"
+            NAME="${TAG}"
+            VERSION="${TAG}"
           fi
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
-          echo "version=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
           echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
 
@@ -94,11 +106,38 @@ jobs:
             (cd "${DIST_DIR}" && shasum -a 256 "${BIN_NAME}_${VERSION}_"* > "$(basename "${CHECKSUM_FILE}")")
           fi
 
+      - name: Build release changelog
+        env:
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          PREV_TAG="$(git tag --list 'v*' --sort=-creatordate | grep -Fxv "${RELEASE_TAG}" | head -n1 || true)"
+          if [[ -n "${PREV_TAG}" ]]; then
+            CHANGES="$(git log --no-merges --pretty='- %s (%h)' "${PREV_TAG}..HEAD" || true)"
+            RANGE_NOTE="Changes since \`${PREV_TAG}\`."
+          else
+            CHANGES="$(git log --no-merges --pretty='- %s (%h)' || true)"
+            RANGE_NOTE="Initial release changelog."
+          fi
+          if [[ -z "${CHANGES// }" ]]; then
+            CHANGES="- No user-facing changes in this release."
+          fi
+
+          {
+            echo "## Changelog"
+            echo
+            echo "${RANGE_NOTE}"
+            echo
+            echo "${CHANGES}"
+          } > dist/RELEASE_NOTES.md
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.name }}
           files: dist/*
-          generate_release_notes: true
+          body_path: dist/RELEASE_NOTES.md
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
