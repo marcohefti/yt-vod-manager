@@ -8,4 +8,6 @@ const (
 	DefaultQuality            = "best"
 	DefaultSubtitleLanguage   = "english"
 	DefaultBrowserCookieAgent = "chrome"
+	DefaultDownloadLimitMBps  = 0
+	DefaultProxyMode          = ProxyModeOff
 )

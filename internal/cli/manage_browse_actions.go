@@ -11,10 +11,12 @@ import (
 
 const (
 	manageActionSyncActive = iota
+	manageActionGlobalSettings
 )
 
 var manageActions = []string{
 	"Sync Active Projects",
+	"Global Settings",
 }
 
 func (m manageModel) renderActionsPanel(width int) string {

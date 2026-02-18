@@ -133,6 +133,7 @@ func runArchive(args []string) error {
 	config := fs.String("config", discovery.DefaultProjectsConfigPath, "project config path")
 	maxJobs := fs.Int("max-jobs", 0, "max jobs to process this invocation (0 = no limit)")
 	workers := fs.Int("workers", 0, "number of parallel video workers (0 = project/default)")
+	downloadLimitMBps := fs.Float64("download-limit-mb-s", -1, "download limit in MB/s (0 = unlimited, -1 = global/default)")
 	retryPermanent := fs.Bool("retry-permanent", false, "also retry jobs currently marked failed_permanent")
 	stopOnRetryable := fs.Bool("stop-on-retryable", true, "stop run after first retryable failure")
 	fragments := fs.Int("fragments", 0, "yt-dlp fragment concurrency (-N); 0 = project/default")
@@ -152,11 +153,15 @@ func runArchive(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if *downloadLimitMBps < -1 {
+		return errors.New("--download-limit-mb-s must be >= 0, or -1 to keep global/default")
+	}
+	configPath := strings.TrimSpace(*config)
 
 	targetRunDir := strings.TrimSpace(*runDir)
 	projectDefaults := discovery.Project{}
 	if strings.TrimSpace(*project) != "" {
-		resolved, proj, err := discovery.ResolveRunDirForProject(strings.TrimSpace(*config), strings.TrimSpace(*project), strings.TrimSpace(*runsDir))
+		resolved, proj, err := discovery.ResolveRunDirForProject(configPath, strings.TrimSpace(*project), strings.TrimSpace(*runsDir))
 		if err != nil {
 			return err
 		}
@@ -174,7 +179,20 @@ func runArchive(args []string) error {
 		effectiveCookiesFromBrowser = discovery.DefaultBrowserCookieAgent
 	}
 
-	effectiveWorkers := firstNonZero(*workers, projectDefaults.Workers, discovery.DefaultWorkers)
+	global, err := discovery.ReadGlobalSettings(configPath)
+	if err != nil {
+		return err
+	}
+	var limitOverride *float64
+	if *downloadLimitMBps >= 0 {
+		v := *downloadLimitMBps
+		limitOverride = &v
+	}
+	networkSettings, err := discovery.ResolveRuntimeNetworkSettings(projectDefaults, global, *workers, limitOverride)
+	if err != nil {
+		return err
+	}
+
 	effectiveFragments := firstNonZero(*fragments, projectDefaults.Fragments, discovery.DefaultFragments)
 	effectiveOrder := firstNonEmpty(strings.TrimSpace(*order), projectDefaults.Order, discovery.DefaultOrder)
 	effectiveQuality := firstNonEmpty(strings.TrimSpace(*quality), projectDefaults.Quality, discovery.DefaultQuality)
@@ -196,7 +214,10 @@ func runArchive(args []string) error {
 		SubLangs:           effectiveSubLangs,
 		Fragments:          effectiveFragments,
 		MaxJobs:            *maxJobs,
-		Workers:            effectiveWorkers,
+		Workers:            networkSettings.Workers,
+		DownloadLimitMBps:  networkSettings.DownloadLimitMBps,
+		ProxyMode:          networkSettings.ProxyMode,
+		Proxies:            networkSettings.Proxies,
 		NoSubs:             effectiveNoSubs,
 		RetryPermanent:     *retryPermanent,
 		StopOnRetryable:    *stopOnRetryable,

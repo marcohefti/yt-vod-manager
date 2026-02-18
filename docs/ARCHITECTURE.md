@@ -36,14 +36,18 @@ Project-first flow:
 
 2. `add` / `list` / `remove`
 - Manage named project definitions in `config/projects.json`.
-- Persist optional per-project execution defaults.
+- Persist optional per-project execution overrides.
 
-3. `sync`
+3. `settings`
+- Manage global runtime defaults in `config/projects.json` (`global` block).
+- Configure workers, per-worker proxy pool, and global MB/s download cap.
+
+4. `sync`
 - Resolve targets from project selection, source URL, or fetchlist.
 - For each source, upsert run (create or refresh by source URL).
 - Execute archive run unless `--no-run`.
 
-4. `status`
+5. `status`
 - Resolve projects.
 - Load each latest run by source URL.
 - Produce multi-project health rollup.
@@ -58,7 +62,9 @@ Advanced flow remains available:
 ## State Model
 
 Project registry:
-- `config/projects.json` stores project definitions and defaults.
+- `config/projects.json` stores:
+  - `global` runtime settings (workers, proxy mode/list, download limit)
+  - per-project settings (including optional worker override where `0` means inherit)
 
 Run state (per run directory):
 - `manifest.raw.json`
@@ -75,6 +81,13 @@ Job statuses:
 - `skipped_private`
 
 Transitions are defined in `internal/model/status.go` and enforced at runtime through `model.TransitionJobStatus`.
+
+Runtime precedence:
+
+1. CLI one-off overrides
+2. Project overrides
+3. Global settings
+4. Built-in defaults
 
 ## Test Harness
 

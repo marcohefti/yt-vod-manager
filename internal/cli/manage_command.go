@@ -22,6 +22,13 @@ const (
 	manageModeDeleteConfirm
 )
 
+type manageFormKind int
+
+const (
+	manageFormKindProject manageFormKind = iota
+	manageFormKindGlobal
+)
+
 type manageFieldKind int
 
 const (
@@ -42,6 +49,7 @@ type manageFormField struct {
 }
 
 type manageForm struct {
+	Kind        manageFormKind
 	Title       string
 	IsEdit      bool
 	ProjectName string
@@ -55,6 +63,7 @@ type manageForm struct {
 type manageModel struct {
 	configPath string
 	projects   []discovery.Project
+	global     discovery.GlobalSettings
 	cursor     int
 	width      int
 	height     int
@@ -69,6 +78,7 @@ type manageModel struct {
 
 type manageLoadedMsg struct {
 	projects []discovery.Project
+	global   discovery.GlobalSettings
 	err      error
 }
 
@@ -148,6 +158,7 @@ func (m manageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.projects = msg.projects
+		m.global = msg.global
 		if m.cursor < 0 {
 			m.cursor = 0
 		}
@@ -233,10 +244,16 @@ func (m manageModel) updateBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, loadProjectsCmd(m.configPath)
 	case "enter", "e":
 		if m.isActionCursor() {
-			if m.selectedActionIndex() == manageActionSyncActive {
+			switch m.selectedActionIndex() {
+			case manageActionSyncActive:
 				m.statusMessage = "sync active projects: launching sync..."
 				m.launchSyncActive = true
 				return m, tea.Quit
+			case manageActionGlobalSettings:
+				m.mode = manageModeForm
+				m.form = newManageGlobalForm(m.global, m.width)
+				m.statusMessage = ""
+				return m, nil
 			}
 			return m, nil
 		}
@@ -343,6 +360,16 @@ func (m manageModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.form.Index++
 			m.form.loadFieldIntoInput()
 			return m, nil
+		}
+		if m.form.Kind == manageFormKindGlobal {
+			global, err := m.form.toGlobalSettings()
+			if err != nil {
+				m.form.Error = err.Error()
+				return m, nil
+			}
+			m.form.Error = ""
+			m.form.Saving = true
+			return m, saveGlobalSettingsCmd(m.configPath, global)
 		}
 		opts, err := m.form.toAddProjectOptions(m.configPath)
 		if err != nil {
@@ -482,6 +509,14 @@ func (m manageModel) renderDetailsPanel(width int) string {
 			lines = append(lines, "")
 			lines = append(lines, "Runs sync for all projects with active=yes.")
 			lines = append(lines, "Press Enter to launch sync view.")
+		case manageActionGlobalSettings:
+			lines = append(lines, "Global Settings")
+			lines = append(lines, kv("workers", strconv.Itoa(m.global.Workers)))
+			lines = append(lines, kv("download_limit_mb_s", formatFloat(m.global.DownloadLimitMBps)))
+			lines = append(lines, kv("proxy_mode", m.global.ProxyMode))
+			lines = append(lines, kv("proxies", strconv.Itoa(len(m.global.Proxies))))
+			lines = append(lines, "")
+			lines = append(lines, "Press Enter to edit global defaults.")
 		default:
 			lines = append(lines, "Select an action.")
 		}
@@ -501,7 +536,7 @@ func (m manageModel) renderDetailsPanel(width int) string {
 		lines = append(lines, kv("output_dir", defaultIfEmpty(p.OutputDir, "(run default)")))
 		lines = append(lines, kv("browser_cookies", yesNo(strings.TrimSpace(p.CookiesFromBrowser) != "")))
 		lines = append(lines, kv("cookies_file", yesNo(strings.TrimSpace(p.CookiesPath) != "")))
-		lines = append(lines, kv("workers", formatIntDefault(p.Workers)))
+		lines = append(lines, kv("workers", formatWorkerOverride(p.Workers)))
 		lines = append(lines, kv("fragments", formatIntDefault(p.Fragments)))
 		lines = append(lines, kv("order", defaultIfEmpty(p.Order, discovery.DefaultOrder)))
 		lines = append(lines, kv("delivery", defaultIfEmpty(p.DeliveryMode, "(sync default: auto)")))
@@ -593,11 +628,11 @@ func (m manageModel) viewDeleteConfirm() string {
 
 func loadProjectsCmd(configPath string) tea.Cmd {
 	return func() tea.Msg {
-		res, err := discovery.ListProjects(discovery.ListProjectsOptions{ConfigPath: configPath})
+		reg, err := discovery.LoadProjects(configPath)
 		if err != nil {
 			return manageLoadedMsg{err: err}
 		}
-		return manageLoadedMsg{projects: res.Projects}
+		return manageLoadedMsg{projects: reg.Projects, global: reg.Global}
 	}
 }
 
@@ -625,7 +660,7 @@ func deleteProjectCmd(configPath, name string) tea.Cmd {
 }
 
 func newManageForm(existing *discovery.Project, width int) *manageForm {
-	f := &manageForm{}
+	f := &manageForm{Kind: manageFormKindProject}
 	if existing == nil {
 		f.Title = "New Project Wizard"
 		f.IsEdit = false
@@ -634,7 +669,7 @@ func newManageForm(existing *discovery.Project, width int) *manageForm {
 			{Key: "name", Label: "Project Name", Help: "Optional; leave empty for auto-name", Kind: manageFieldString},
 			{Key: "active", Label: "Active", Help: "Included in 'Sync Active Projects'", Kind: manageFieldBool, Value: "y"},
 			{Key: "quality", Label: "Quality", Help: "Best, 1080p, or 720p", Kind: manageFieldSelect, Value: discovery.DefaultQuality, Options: []string{"best", "1080p", "720p"}},
-			{Key: "workers", Label: "Workers", Help: "How many videos to download in parallel", Kind: manageFieldInt, Value: strconv.Itoa(discovery.DefaultWorkers)},
+			{Key: "workers", Label: "Workers", Help: "Project override; 0 inherits global/default", Kind: manageFieldInt, Value: "0"},
 			{Key: "fragments", Label: "Fragments", Help: "How many chunks per video stream", Kind: manageFieldInt, Value: strconv.Itoa(discovery.DefaultFragments)},
 			{Key: "order", Label: "Download Order", Help: "Oldest first is safest for large backfills", Kind: manageFieldSelect, Value: discovery.DefaultOrder, Options: []string{"oldest", "newest", "manifest"}},
 			{Key: "subtitles", Label: "Subtitles", Help: "Download subtitles when available", Kind: manageFieldBool, Value: "y"},
@@ -652,7 +687,7 @@ func newManageForm(existing *discovery.Project, width int) *manageForm {
 			{Key: "source", Label: "Source URL", Help: "Playlist or channel URL", Kind: manageFieldString, Required: true, Value: existing.SourceURL},
 			{Key: "active", Label: "Active", Help: "Included in 'Sync Active Projects'", Kind: manageFieldBool, Value: boolToYN(isProjectActive(*existing))},
 			{Key: "quality", Label: "Quality", Help: "Best, 1080p, or 720p", Kind: manageFieldSelect, Value: defaultIfEmpty(existing.Quality, discovery.DefaultQuality), Options: []string{"best", "1080p", "720p"}},
-			{Key: "workers", Label: "Workers", Help: "How many videos to download in parallel", Kind: manageFieldInt, Value: strconv.Itoa(maxInt(existing.Workers, discovery.DefaultWorkers))},
+			{Key: "workers", Label: "Workers", Help: "Project override; 0 inherits global/default", Kind: manageFieldInt, Value: strconv.Itoa(existing.Workers)},
 			{Key: "fragments", Label: "Fragments", Help: "How many chunks per video stream", Kind: manageFieldInt, Value: strconv.Itoa(maxInt(existing.Fragments, discovery.DefaultFragments))},
 			{Key: "order", Label: "Download Order", Help: "Oldest first is safest for large backfills", Kind: manageFieldSelect, Value: defaultIfEmpty(existing.Order, discovery.DefaultOrder), Options: []string{"oldest", "newest", "manifest"}},
 			{Key: "subtitles", Label: "Subtitles", Help: "Download subtitles when available", Kind: manageFieldBool, Value: boolToYN(!existing.NoSubs)},

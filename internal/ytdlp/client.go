@@ -35,6 +35,8 @@ type DownloadOptions struct {
 	Quality            string
 	DeliveryMode       string
 	SubLangs           string
+	DownloadLimitMBps  float64
+	ProxyURL           string
 	Stdout             io.Writer
 	Stderr             io.Writer
 	LogWriter          io.Writer
@@ -151,6 +153,12 @@ func DownloadVideo(opts DownloadOptions) (DownloadResult, error) {
 	if strings.TrimSpace(opts.CookiesFromBrowser) != "" {
 		args = append(args, "--cookies-from-browser", opts.CookiesFromBrowser)
 	}
+	if opts.DownloadLimitMBps > 0 {
+		args = append(args, "--limit-rate", formatRateLimitMBps(opts.DownloadLimitMBps))
+	}
+	if strings.TrimSpace(opts.ProxyURL) != "" {
+		args = append(args, "--proxy", strings.TrimSpace(opts.ProxyURL))
+	}
 	args = append(args, opts.VideoURL)
 
 	if err := runCommand(args, opts); err != nil {
@@ -190,6 +198,12 @@ func DownloadSubtitles(opts DownloadOptions) (DownloadResult, error) {
 	}
 	if strings.TrimSpace(opts.CookiesFromBrowser) != "" {
 		args = append(args, "--cookies-from-browser", opts.CookiesFromBrowser)
+	}
+	if opts.DownloadLimitMBps > 0 {
+		args = append(args, "--limit-rate", formatRateLimitMBps(opts.DownloadLimitMBps))
+	}
+	if strings.TrimSpace(opts.ProxyURL) != "" {
+		args = append(args, "--proxy", strings.TrimSpace(opts.ProxyURL))
 	}
 	args = append(args, opts.VideoURL)
 
@@ -325,6 +339,10 @@ func appendLimited(outBuf, errBuf *strings.Builder, stream OutputStream, line st
 		toWrite = toWrite[:remain]
 	}
 	b.WriteString(toWrite)
+}
+
+func formatRateLimitMBps(v float64) string {
+	return fmt.Sprintf("%gM", v)
 }
 
 func resolveCookiesPath(path string) (string, error) {

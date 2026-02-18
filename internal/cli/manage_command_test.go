@@ -80,6 +80,25 @@ func TestManageBrowseSyncActiveSetsLaunchingStatus(t *testing.T) {
 	}
 }
 
+func TestManageBrowseGlobalSettingsOpensGlobalForm(t *testing.T) {
+	m := manageModel{
+		mode:   manageModeBrowse,
+		cursor: 2, // len(projects)=0 => row 2 is second Action ("Global Settings").
+	}
+
+	model, _ := m.updateBrowse(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := model.(manageModel)
+	if m2.mode != manageModeForm {
+		t.Fatalf("expected mode %v, got %v", manageModeForm, m2.mode)
+	}
+	if m2.form == nil {
+		t.Fatal("expected form")
+	}
+	if m2.form.Kind != manageFormKindGlobal {
+		t.Fatalf("expected global form, got kind %v", m2.form.Kind)
+	}
+}
+
 func findFieldIndexByKey(f *manageForm, key string) int {
 	if f == nil {
 		return -1

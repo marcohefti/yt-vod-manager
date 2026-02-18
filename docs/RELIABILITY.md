@@ -7,6 +7,7 @@
 - Recover when local media disappears after previous completion.
 - Distinguish retryable failures from permanent failures.
 - Keep multi-project operations observable and explicit.
+- Keep runtime settings resolution deterministic across `sync` and `run`.
 
 ## Current Safeguards
 
@@ -20,6 +21,8 @@
 - Project status rollup (`status`) across configured sources.
 - Explicit run targeting for advanced commands (`run`/`refresh`) unless `--latest` is chosen.
 - State file writes are atomic (write temp + rename) to reduce partial-write corruption.
+- Global runtime settings are resolved once per invocation and applied uniformly.
+- Per-worker proxy mode fails fast when proxy count is lower than effective worker count.
 
 ## Boundaries That Protect Reliability
 

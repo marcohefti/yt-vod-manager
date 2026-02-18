@@ -23,8 +23,8 @@ func TestLoadProjectRegistryAppliesUserDefaults(t *testing.T) {
 		t.Fatalf("expected 1 project, got %d", len(reg.Projects))
 	}
 	p := reg.Projects[0]
-	if p.Workers != DefaultWorkers {
-		t.Fatalf("workers default mismatch: got %d want %d", p.Workers, DefaultWorkers)
+	if p.Workers != 0 {
+		t.Fatalf("workers override default mismatch: got %d want %d", p.Workers, 0)
 	}
 	if p.Fragments != DefaultFragments {
 		t.Fatalf("fragments default mismatch: got %d want %d", p.Fragments, DefaultFragments)

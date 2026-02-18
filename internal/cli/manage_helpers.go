@@ -105,6 +105,13 @@ func formatIntDefault(v int) string {
 	return strconv.Itoa(v)
 }
 
+func formatWorkerOverride(v int) string {
+	if v <= 0 {
+		return "(inherit global/default)"
+	}
+	return strconv.Itoa(v)
+}
+
 func yesNo(v bool) string {
 	if v {
 		return "yes"

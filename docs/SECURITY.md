@@ -17,6 +17,7 @@
 
 - Cookies files are operator-provided and never persisted into manifests.
 - Local operator config (`config/projects.json`) is environment-local; keep repository-safe defaults in `config/projects.example.json`.
+- Proxy endpoints configured in global settings may contain credentials; treat `config/projects.json` as sensitive operator state.
 - Logs may contain source URLs and yt-dlp output; treat run directories as sensitive operational artifacts.
 - Do not commit cookies files or private run logs.
 

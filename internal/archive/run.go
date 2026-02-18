@@ -28,6 +28,9 @@ type RunOptions struct {
 	Fragments          int
 	MaxJobs            int
 	Workers            int
+	DownloadLimitMBps  float64
+	ProxyMode          string
+	Proxies            []string
 	NoSubs             bool
 	RetryPermanent     bool
 	StopOnRetryable    bool
@@ -127,6 +130,16 @@ func Run(opts RunOptions) (RunResult, error) {
 	if workers <= 0 {
 		workers = 5
 	}
+	proxyMode := normalizeProxyMode(opts.ProxyMode)
+	proxies := normalizeProxyList(opts.Proxies)
+	if proxyMode == proxyModePerWorker {
+		if len(proxies) == 0 {
+			return RunResult{}, fmt.Errorf("proxy mode %q requires at least one proxy", proxyModePerWorker)
+		}
+		if workers > len(proxies) {
+			return RunResult{}, fmt.Errorf("proxy mode %q requires at least %d proxies for %d workers", proxyModePerWorker, workers, workers)
+		}
+	}
 	dashboardEnabled := opts.Progress && workers > 1
 	var dash *multiDashboard
 	if dashboardEnabled {
@@ -161,6 +174,7 @@ func Run(opts RunOptions) (RunResult, error) {
 
 	workerFn := func(workerID int) {
 		defer wg.Done()
+		workerProxy := proxyForWorker(workerID, proxyMode, proxies)
 		for i := range jobCh {
 			if stopAll.Load() {
 				continue
@@ -286,6 +300,8 @@ func Run(opts RunOptions) (RunResult, error) {
 				CookiesFromBrowser: opts.CookiesFromBrowser,
 				Quality:            opts.Quality,
 				DeliveryMode:       opts.DeliveryMode,
+				DownloadLimitMBps:  opts.DownloadLimitMBps,
+				ProxyURL:           workerProxy,
 				Stdout:             os.Stdout,
 				Stderr:             os.Stderr,
 				LogWriter:          logFile,
@@ -316,6 +332,8 @@ func Run(opts RunOptions) (RunResult, error) {
 						CookiesFromBrowser: opts.CookiesFromBrowser,
 						DeliveryMode:       opts.DeliveryMode,
 						SubLangs:           opts.SubLangs,
+						DownloadLimitMBps:  opts.DownloadLimitMBps,
+						ProxyURL:           workerProxy,
 						Stdout:             os.Stdout,
 						Stderr:             os.Stderr,
 						LogWriter:          logFile,

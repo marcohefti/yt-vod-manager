@@ -93,7 +93,7 @@ func runAddProject(args []string) error {
 	outputDir := fs.String("output-dir", "", "project output directory override")
 	cookies := fs.String("cookies", "", "path to cookies.txt")
 	useBrowserCookies := fs.Bool("browser-cookies", false, browserCookiesFlagHelp)
-	workers := fs.Int("workers", discovery.DefaultWorkers, "default workers for this project")
+	workers := fs.Int("workers", 0, "project worker override (0 = inherit global/default)")
 	fragments := fs.Int("fragments", discovery.DefaultFragments, "default yt-dlp fragment concurrency for this project")
 	order := fs.String("order", discovery.DefaultOrder, "default order: oldest|newest|manifest")
 	quality := fs.String("quality", discovery.DefaultQuality, "quality preset: best|1080p|720p")

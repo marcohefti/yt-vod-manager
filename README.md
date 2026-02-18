@@ -33,6 +33,12 @@ brew tap marcohefti/yt-vod-manager
 brew install yt-vod-manager
 ```
 
+WinGet:
+
+```powershell
+winget install --id MarcoHefti.YTVodManager
+```
+
 npm:
 
 ```bash
@@ -107,6 +113,7 @@ Manager controls:
 - `d` delete selected project
 - `space` toggle `active` on selected project
 - move down into the `Actions` panel and press `enter` on `Sync Active Projects` to launch sync
+- move down into the `Actions` panel and press `enter` on `Global Settings` to edit global defaults
 - `left/right` or `space` toggle select/yes-no fields in the wizard
 - `q` quit
 
@@ -136,10 +143,20 @@ yt-vod-manager sync --all-projects --no-run
 yt-vod-manager remove --name my-playlist --yes
 ```
 
+- Show or update global settings:
+
+```bash
+yt-vod-manager settings show
+yt-vod-manager settings set --workers 6 --download-limit-mb-s 80 --proxy-mode per_worker
+yt-vod-manager settings proxy add --value "http://user:pass@proxy-1:8080"
+```
+
 ## Useful Options
 
 - `--workers 5` download multiple videos in parallel (default is `5`).
+- On `add`, `--workers 0` means "inherit global/default workers".
 - `--fragments 10` stream chunks per video (default is `10`).
+- `--download-limit-mb-s 80` cap transfer speed to 80 MB/s for this invocation (`0` disables cap).
 - `--order oldest` process oldest-first by default.
 - `--quality best|1080p|720p` choose a simple quality preset.
 - `--subtitles auto|yes|no` choose whether subtitles are downloaded.
@@ -165,6 +182,16 @@ Managed by:
 - `remove`
 
 Each saved source can keep defaults like workers/fragments/order/cookies/subtitle options.
+Global settings in the same file (`global`) control:
+- default workers
+- global download limit in MB/s
+- proxy mode and proxy list (one proxy per worker when `proxy_mode=per_worker`)
+
+Runtime precedence:
+1. CLI invocation flags
+2. Project overrides
+3. Global settings
+4. Built-in defaults
 
 ## Output Layout
 
@@ -252,7 +279,7 @@ GitHub Releases are built automatically via `.github/workflows/release.yml`:
 - push to `main` -> versioned prerelease snapshot (`v0.1.0-dev.<run>` initially; after `vX.Y.Z`, next snapshots use `vX.Y.(Z+1)-dev.<run>`)
 - push version tag `v*` -> normal versioned release
 - each release includes a changelog generated from commits since the previous release tag
-- stable tag releases also publish to npm and update Homebrew formula (if repo secrets are set)
+- stable tag releases also publish to npm, update Homebrew formula, and generate WinGet manifests (if repo secrets are set, WinGet updates are auto-submitted)
 
 Create a release tag:
 
@@ -266,6 +293,7 @@ Artifacts are attached to the release page:
 - `linux` (`amd64`, `arm64`)
 - `windows` (`amd64`)
 - `checksums` file for integrity verification
+- `winget-manifests_<tag>.zip` (stable tags only)
 
 ### Package Manager Install
 
@@ -276,6 +304,12 @@ brew tap marcohefti/yt-vod-manager
 brew install yt-vod-manager
 ```
 
+WinGet:
+
+```powershell
+winget install --id MarcoHefti.YTVodManager
+```
+
 npm:
 
 ```bash
@@ -284,10 +318,12 @@ npm install -g @marcohefti/yt-vod-manager
 
 For automation in GitHub Actions:
 - set `HOMEBREW_TAP_GITHUB_TOKEN` (repo write access to `marcohefti/homebrew-yt-vod-manager`)
+- set `WINGET_CREATE_GITHUB_TOKEN` (GitHub PAT with `public_repo` scope for `wingetcreate` submit)
 - configure npm Trusted Publisher for `@marcohefti/yt-vod-manager`:
   - owner: `marcohefti`
   - repository: `yt-vod-manager`
   - workflow file: `.github/workflows/release.yml`
+- first WinGet submission is manual in `microsoft/winget-pkgs`; after package `MarcoHefti.YTVodManager` exists, releases auto-submit updates
 
 ## License
 

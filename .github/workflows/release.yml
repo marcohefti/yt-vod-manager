@@ -14,6 +14,11 @@ permissions:
 
 jobs:
   publish:
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      version_no_v: ${{ steps.meta.outputs.version_no_v }}
+      stable: ${{ steps.meta.outputs.stable }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,6 +117,39 @@ jobs:
           else
             (cd "${DIST_DIR}" && shasum -a 256 "${BIN_NAME}_${VERSION}_"* > "$(basename "${CHECKSUM_FILE}")")
           fi
+
+      - name: Build WinGet manifests
+        if: ${{ steps.meta.outputs.stable == 'true' }}
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
+        run: |
+          set -euo pipefail
+
+          WINDOWS_FILE="yt-vod-manager_${VERSION}_windows_amd64.zip"
+          WINDOWS_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/${WINDOWS_FILE}"
+
+          sha_file() {
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$1" | awk '{print $1}'
+            else
+              shasum -a 256 "$1" | awk '{print $1}'
+            fi
+          }
+
+          WINDOWS_SHA="$(sha_file "dist/${WINDOWS_FILE}")"
+          OUT_ROOT="dist/winget"
+
+          ./packaging/winget/generate-manifests.sh \
+            --version "${VERSION_NO_V}" \
+            --release-tag "${VERSION}" \
+            --installer-url "${WINDOWS_URL}" \
+            --installer-sha "${WINDOWS_SHA}" \
+            --release-date "$(date -u +%F)" \
+            --out-root "${OUT_ROOT}"
+
+          (cd "${OUT_ROOT}" && zip -rq "../winget-manifests_${VERSION}.zip" manifests)
+          rm -rf "${OUT_ROOT}"
 
       - name: Build release changelog
         env:
@@ -252,3 +290,80 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "yt-vod-manager ${VERSION_NO_V}"
           git push origin HEAD:main
+
+  publish-winget:
+    needs: publish
+    if: ${{ needs.publish.outputs.stable == 'true' }}
+    runs-on: windows-latest
+    env:
+      PACKAGE_ID: MarcoHefti.YTVodManager
+      RELEASE_TAG: ${{ needs.publish.outputs.tag }}
+      VERSION_NO_V: ${{ needs.publish.outputs.version_no_v }}
+      REPOSITORY: ${{ github.repository }}
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+    steps:
+      - name: Check WinGet submit prerequisites
+        id: prereq
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINGET_CREATE_GITHUB_TOKEN)) {
+            Write-Host "WINGET_CREATE_GITHUB_TOKEN is not set; skipping WinGet submit."
+            "ready=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $assetUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:RELEASE_TAG/yt-vod-manager_$($env:RELEASE_TAG)_windows_amd64.zip"
+          "asset_url=$assetUrl" >> $env:GITHUB_OUTPUT
+
+          $packagePath = "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/m/MarcoHefti/YTVodManager?ref=master"
+          $statusCode = & curl.exe -s -o NUL -w "%{http_code}" $packagePath
+          if ($statusCode -eq "200") {
+            "package_exists=true" >> $env:GITHUB_OUTPUT
+          } elseif ($statusCode -eq "404") {
+            Write-Host "WinGet package path not found yet; skipping auto-submit."
+            "package_exists=false" >> $env:GITHUB_OUTPUT
+          } else {
+            throw "Unexpected HTTP status checking WinGet package path: $statusCode"
+          }
+
+          $versionPath = "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/m/MarcoHefti/YTVodManager/$env:VERSION_NO_V?ref=master"
+          $versionStatus = & curl.exe -s -o NUL -w "%{http_code}" $versionPath
+          if ($versionStatus -eq "200") {
+            Write-Host "WinGet manifest version already exists; skipping submit."
+            "version_exists=true" >> $env:GITHUB_OUTPUT
+          } elseif ($versionStatus -eq "404") {
+            "version_exists=false" >> $env:GITHUB_OUTPUT
+          } else {
+            throw "Unexpected HTTP status checking WinGet version path: $versionStatus"
+          }
+
+          "ready=true" >> $env:GITHUB_OUTPUT
+
+      - name: Submit WinGet manifest update
+        if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
+        shell: pwsh
+        run: |
+          curl.exe -JLO https://aka.ms/wingetcreate/latest
+
+          $releaseNotesUrl = "https://github.com/$env:REPOSITORY/releases/tag/$env:RELEASE_TAG"
+          $releaseDate = Get-Date -AsUTC -Format "yyyy-MM-dd"
+
+          .\wingetcreate.exe update $env:PACKAGE_ID `
+            --version $env:VERSION_NO_V `
+            --urls "${{ steps.prereq.outputs.asset_url }}" `
+            --release-date $releaseDate `
+            --release-notes-url $releaseNotesUrl `
+            --submit `
+            --no-open
+
+      - name: WinGet package bootstrap notice
+        if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists != 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "Run the first submission manually in microsoft/winget-pkgs, then later releases will auto-submit updates."
+
+      - name: WinGet version already exists notice
+        if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists == 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "WinGet manifest version already exists in microsoft/winget-pkgs; skipping submit."

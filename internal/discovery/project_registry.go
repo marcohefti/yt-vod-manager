@@ -14,7 +14,7 @@ import (
 
 const (
 	DefaultProjectsConfigPath = "config/projects.json"
-	projectSchemaVersion      = 1
+	projectSchemaVersion      = 2
 )
 
 var (
@@ -40,9 +40,10 @@ type Project struct {
 }
 
 type ProjectRegistry struct {
-	SchemaVersion int       `json:"schema_version"`
-	UpdatedAt     string    `json:"updated_at"`
-	Projects      []Project `json:"projects"`
+	SchemaVersion int            `json:"schema_version"`
+	UpdatedAt     string         `json:"updated_at"`
+	Global        GlobalSettings `json:"global,omitempty"`
+	Projects      []Project      `json:"projects"`
 }
 
 type AddProjectOptions struct {
@@ -110,6 +111,7 @@ func EnsureProjectRegistry(configPath string) (ProjectRegistry, bool, error) {
 	reg = ProjectRegistry{
 		SchemaVersion: projectSchemaVersion,
 		UpdatedAt:     now,
+		Global:        defaultGlobalSettings(),
 		Projects:      []Project{},
 	}
 	if err := saveProjectRegistry(path, reg); err != nil {
@@ -128,6 +130,12 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 	sourceURL := strings.TrimSpace(opts.SourceURL)
 	if sourceURL == "" {
 		return AddProjectResult{}, fmt.Errorf("source URL is required")
+	}
+	if opts.Workers < 0 {
+		return AddProjectResult{}, fmt.Errorf("workers must be >= 0")
+	}
+	if opts.Fragments < 0 {
+		return AddProjectResult{}, fmt.Errorf("fragments must be >= 0")
 	}
 	canonicalSource := normalizeSourceURL(sourceURL)
 	for _, p := range reg.Projects {
@@ -169,9 +177,6 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 	}
 	if project.Active == nil {
 		project.Active = boolPtr(true)
-	}
-	if project.Workers <= 0 {
-		project.Workers = DefaultWorkers
 	}
 	if project.Fragments <= 0 {
 		project.Fragments = DefaultFragments
@@ -364,6 +369,7 @@ func loadProjectRegistry(path string) (ProjectRegistry, error) {
 	if reg.SchemaVersion == 0 {
 		reg.SchemaVersion = projectSchemaVersion
 	}
+	reg.Global = normalizeGlobalSettings(reg.Global)
 	if reg.Projects == nil {
 		reg.Projects = []Project{}
 	}
@@ -384,9 +390,6 @@ func loadProjectRegistry(path string) (ProjectRegistry, error) {
 		}
 		if p.Active == nil {
 			p.Active = boolPtr(true)
-		}
-		if p.Workers <= 0 {
-			p.Workers = DefaultWorkers
 		}
 		if p.Fragments <= 0 {
 			p.Fragments = DefaultFragments
@@ -426,6 +429,7 @@ func saveProjectRegistry(path string, reg ProjectRegistry) error {
 	if strings.TrimSpace(reg.UpdatedAt) == "" {
 		reg.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	reg.Global = normalizeGlobalSettings(reg.Global)
 	if reg.Projects == nil {
 		reg.Projects = []Project{}
 	}
