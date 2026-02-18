@@ -34,6 +34,6 @@ jobs:
         run: ./scripts/check_golden_rules.sh
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
+        run: |
+          GOBIN="$(pwd)/bin/tools" go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          ./bin/tools/golangci-lint run ./...
