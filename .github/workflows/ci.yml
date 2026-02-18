@@ -34,3 +34,27 @@ jobs:
         run: |
           GOBIN="$(pwd)/bin/tools" go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           ./bin/tools/golangci-lint run ./...
+
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Windows binary
+        shell: pwsh
+        run: go build -trimpath -o bin/yt-vod-manager.exe ./cmd/yt-vod-manager
+
+      - name: CLI smoke
+        shell: pwsh
+        run: |
+          $cfg = Join-Path $env:RUNNER_TEMP "projects.json"
+          .\bin\yt-vod-manager.exe --help
+          .\bin\yt-vod-manager.exe settings help
+          .\bin\yt-vod-manager.exe add --name smoke --source https://example.com/channel --config $cfg
+          .\bin\yt-vod-manager.exe list --config $cfg
