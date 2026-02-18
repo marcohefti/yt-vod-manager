@@ -39,22 +39,28 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF_NAME}"
             PRERELEASE=false
+            STABLE=false
             if [[ "${TAG}" == *-* ]]; then
               PRERELEASE=true
+            else
+              STABLE=true
             fi
             NAME="${TAG}"
             VERSION="${TAG}"
           else
             TAG="v${NEXT_DEV_BASE}-dev.${GITHUB_RUN_NUMBER}"
             PRERELEASE=true
+            STABLE=false
             NAME="${TAG}"
             VERSION="${TAG}"
           fi
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "version_no_v=${VERSION#v}" >> "${GITHUB_OUTPUT}"
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
           echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "stable=${STABLE}" >> "${GITHUB_OUTPUT}"
 
       - name: Build release artifacts
         env:
@@ -141,3 +147,99 @@ jobs:
           files: dist/*
           body_path: dist/RELEASE_NOTES.md
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+
+      - name: Publish npm package
+        if: ${{ steps.meta.outputs.stable == 'true' && secrets.NPM_TOKEN != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: npm publish
+        if: ${{ steps.meta.outputs.stable == 'true' && secrets.NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
+        run: |
+          set -euo pipefail
+          cd packaging/npm
+          npm version --no-git-tag-version "${VERSION_NO_V}"
+          npm publish --access public
+
+      - name: Update Homebrew tap
+        if: ${{ steps.meta.outputs.stable == 'true' && secrets.HOMEBREW_TAP_GITHUB_TOKEN != '' }}
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
+          TAP_REPO: marcohefti/homebrew-yt-vod-manager
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          DARWIN_AMD64_FILE="yt-vod-manager_${VERSION}_darwin_amd64.tar.gz"
+          DARWIN_ARM64_FILE="yt-vod-manager_${VERSION}_darwin_arm64.tar.gz"
+          LINUX_AMD64_FILE="yt-vod-manager_${VERSION}_linux_amd64.tar.gz"
+          LINUX_ARM64_FILE="yt-vod-manager_${VERSION}_linux_arm64.tar.gz"
+
+          sha_file() {
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$1" | awk '{print $1}'
+            else
+              shasum -a 256 "$1" | awk '{print $1}'
+            fi
+          }
+
+          DARWIN_AMD64_SHA="$(sha_file "dist/${DARWIN_AMD64_FILE}")"
+          DARWIN_ARM64_SHA="$(sha_file "dist/${DARWIN_ARM64_FILE}")"
+          LINUX_AMD64_SHA="$(sha_file "dist/${LINUX_AMD64_FILE}")"
+          LINUX_ARM64_SHA="$(sha_file "dist/${LINUX_ARM64_FILE}")"
+
+          rm -rf tap
+          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" tap
+          mkdir -p tap/Formula
+
+          cat > tap/Formula/yt-vod-manager.rb <<EOF
+          class YtVodManager < Formula
+            desc "CLI app to download YouTube channels and playlists and keep them up to date locally"
+            homepage "https://github.com/marcohefti/yt-vod-manager"
+            version "${VERSION_NO_V}"
+
+            if OS.mac?
+              if Hardware::CPU.arm?
+                url "https://github.com/marcohefti/yt-vod-manager/releases/download/${VERSION}/${DARWIN_ARM64_FILE}"
+                sha256 "${DARWIN_ARM64_SHA}"
+              else
+                url "https://github.com/marcohefti/yt-vod-manager/releases/download/${VERSION}/${DARWIN_AMD64_FILE}"
+                sha256 "${DARWIN_AMD64_SHA}"
+              end
+            elsif OS.linux?
+              if Hardware::CPU.arm?
+                url "https://github.com/marcohefti/yt-vod-manager/releases/download/${VERSION}/${LINUX_ARM64_FILE}"
+                sha256 "${LINUX_ARM64_SHA}"
+              else
+                url "https://github.com/marcohefti/yt-vod-manager/releases/download/${VERSION}/${LINUX_AMD64_FILE}"
+                sha256 "${LINUX_AMD64_SHA}"
+              end
+            end
+
+            def install
+              bin.install "yt-vod-manager"
+              prefix.install "README.md", "LICENSE"
+            end
+
+            test do
+              assert_match "yt-vod-manager", shell_output("#{bin}/yt-vod-manager --help")
+            end
+          end
+          EOF
+
+          cd tap
+          if git diff --quiet -- Formula/yt-vod-manager.rb; then
+            echo "No Homebrew formula changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/yt-vod-manager.rb
+          git commit -m "yt-vod-manager ${VERSION_NO_V}"
+          git push origin HEAD:main

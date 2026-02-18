@@ -209,6 +209,7 @@ GitHub Releases are built automatically via `.github/workflows/release.yml`:
 - push to `main` -> versioned prerelease snapshot (`v0.1.0-dev.<run>` initially; after `vX.Y.Z`, next snapshots use `vX.Y.(Z+1)-dev.<run>`)
 - push version tag `v*` -> normal versioned release
 - each release includes a changelog generated from commits since the previous release tag
+- stable tag releases also publish to npm and update Homebrew formula (if repo secrets are set)
 
 Create a release tag:
 
@@ -222,6 +223,25 @@ Artifacts are attached to the release page:
 - `linux` (`amd64`, `arm64`)
 - `windows` (`amd64`)
 - `checksums` file for integrity verification
+
+### Package Manager Install
+
+Homebrew:
+
+```bash
+brew tap marcohefti/yt-vod-manager
+brew install yt-vod-manager
+```
+
+npm:
+
+```bash
+npm install -g @marcohefti/yt-vod-manager
+```
+
+For automation in GitHub Actions:
+- set `HOMEBREW_TAP_GITHUB_TOKEN` (repo write access to `marcohefti/homebrew-yt-vod-manager`)
+- set `NPM_TOKEN` (publish token for npm)
 
 ## License
 

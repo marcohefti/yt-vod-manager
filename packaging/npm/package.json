@@ -1,0 +1,24 @@
+{
+  "name": "@marcohefti/yt-vod-manager",
+  "version": "0.1.0",
+  "description": "Download and sync YouTube channels and playlists from the command line.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcohefti/yt-vod-manager.git"
+  },
+  "homepage": "https://github.com/marcohefti/yt-vod-manager",
+  "bugs": {
+    "url": "https://github.com/marcohefti/yt-vod-manager/issues"
+  },
+  "bin": {
+    "yt-vod-manager": "bin/yt-vod-manager.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -21,3 +21,4 @@ yt-archive
 .DS_Store
 .vscode/
 .idea/
+packaging/npm/vendor/
