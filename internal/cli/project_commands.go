@@ -229,6 +229,7 @@ func runStatus(args []string) error {
 	for _, row := range res.Rows {
 		fmt.Printf("%s [%s]\n", row.Project, row.State)
 		fmt.Printf("  source: %s\n", row.SourceURL)
+		fmt.Printf("  js_runtime: %s\n", firstNonEmpty(row.JSRuntime, discovery.DefaultJSRuntime))
 		if row.RunID != "" {
 			fmt.Printf("  run: %s\n", row.RunID)
 		}

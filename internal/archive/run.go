@@ -72,6 +72,11 @@ func Run(opts RunOptions) (RunResult, error) {
 	if err := ytdlp.CheckDependencies(); err != nil {
 		return RunResult{}, err
 	}
+	effectiveJSRuntime, err := ytdlp.CheckJSRuntime(opts.JSRuntime)
+	if err != nil {
+		return RunResult{}, err
+	}
+	opts.JSRuntime = effectiveJSRuntime
 
 	jobsPath := filepath.Join(runDir, "manifest.jobs.json")
 	var mf model.JobsManifest

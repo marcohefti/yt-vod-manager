@@ -26,6 +26,7 @@ type ProjectStatusResult struct {
 type ProjectStatusItem struct {
 	Project         string `json:"project"`
 	SourceURL       string `json:"source_url"`
+	JSRuntime       string `json:"js_runtime,omitempty"`
 	RunID           string `json:"run_id,omitempty"`
 	RunDir          string `json:"run_dir,omitempty"`
 	SourceTitle     string `json:"source_title,omitempty"`
@@ -126,6 +127,7 @@ func buildProjectStatusRow(runsDir string, project Project) (ProjectStatusItem, 
 	row := ProjectStatusItem{
 		Project:   project.Name,
 		SourceURL: project.SourceURL,
+		JSRuntime: projectJSRuntime(project),
 		State:     "never_synced",
 	}
 
@@ -178,6 +180,14 @@ func buildProjectStatusRow(runsDir string, project Project) (ProjectStatusItem, 
 	}
 	row.State = summarizeState(row)
 	return row, nil
+}
+
+func projectJSRuntime(project Project) string {
+	v, ok := parseJSRuntime(project.JSRuntime)
+	if !ok {
+		return DefaultJSRuntime
+	}
+	return v
 }
 
 func summarizeState(row ProjectStatusItem) string {

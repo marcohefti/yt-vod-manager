@@ -46,6 +46,7 @@ type syncSourceReport struct {
 	FailedRetryable     int    `json:"failed_retryable,omitempty"`
 	FailedPermanent     int    `json:"failed_permanent,omitempty"`
 	Remaining           int    `json:"remaining,omitempty"`
+	EffectiveJSRuntime  string `json:"effective_js_runtime,omitempty"`
 	EstimatedTotalBytes int64  `json:"estimated_total_bytes,omitempty"`
 	EstimatedDoneBytes  int64  `json:"estimated_done_bytes,omitempty"`
 	Error               string `json:"error,omitempty"`
@@ -81,6 +82,7 @@ func runSync(args []string) error {
 	fragments := fs.Int("fragments", 0, "yt-dlp fragment concurrency (-N); 0 = project/default")
 	order := fs.String("order", "", "job processing order: oldest|newest|manifest")
 	quality := fs.String("quality", "", "quality preset: best|1080p|720p")
+	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun")
 	delivery := fs.String("delivery", "", "delivery mode: auto|fragmented")
 	progress := fs.Bool("progress", true, "show live progress renderer")
 	rawOutput := fs.Bool("raw-output", false, "print raw yt-dlp/ffmpeg output lines (verbose)")
@@ -147,6 +149,8 @@ func runSync(args []string) error {
 			Project:   item.Project,
 			SourceURL: item.SourceURL,
 		}
+		effectiveJSRuntime := firstNonEmpty(strings.TrimSpace(*jsRuntime), item.JSRuntime, discovery.DefaultJSRuntime)
+		report.EffectiveJSRuntime = effectiveJSRuntime
 		sourceLabel := firstNonEmpty(item.Project, item.SourceURL)
 		if !*jsonOut {
 			fmt.Printf("[%d/%d] refreshing %s\n", idx+1, len(items), sourceLabel)
@@ -158,7 +162,7 @@ func runSync(args []string) error {
 			RunsDir:            strings.TrimSpace(*runsDir),
 			CookiesPath:        firstNonEmpty(strings.TrimSpace(*cookies), item.CookiesPath),
 			CookiesFromBrowser: firstNonEmpty(cliCookiesFromBrowser, item.CookiesFromBrowser),
-			JSRuntime:          firstNonEmpty(item.JSRuntime, discovery.DefaultJSRuntime),
+			JSRuntime:          effectiveJSRuntime,
 		})
 		if err != nil {
 			failures++
@@ -210,6 +214,9 @@ func runSync(args []string) error {
 				report.Pending,
 			)
 		}
+		if !*jsonOut {
+			fmt.Printf("[%d/%d] effective js runtime: %s\n", idx+1, len(items), effectiveJSRuntime)
+		}
 
 		if *noRun {
 			reports = append(reports, report)
@@ -231,7 +238,6 @@ func runSync(args []string) error {
 		effectiveDelivery := firstNonEmpty(strings.TrimSpace(*delivery), item.DeliveryMode, "auto")
 		effectiveOutputDir := firstNonEmpty(strings.TrimSpace(*outputDir), item.OutputDir)
 		effectiveSubLangs := firstNonEmpty(strings.TrimSpace(*subLangs), item.SubLangs, discovery.DefaultSubtitleLanguage)
-		effectiveJSRuntime := firstNonEmpty(item.JSRuntime, discovery.DefaultJSRuntime)
 		effectiveNoSubs, err := resolveNoSubs(strings.TrimSpace(*subtitles), item.NoSubs)
 		if err != nil {
 			return err

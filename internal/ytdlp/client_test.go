@@ -1,6 +1,11 @@
 package ytdlp
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestFormatRateLimitMBps(t *testing.T) {
 	if got := formatRateLimitMBps(10); got != "10M" {
@@ -37,5 +42,43 @@ func TestAppendJSRuntimeArgsNodeForcesRuntime(t *testing.T) {
 func TestAppendJSRuntimeArgsRejectsInvalidRuntime(t *testing.T) {
 	if _, err := appendJSRuntimeArgs(nil, "spidermonkey"); err == nil {
 		t.Fatal("expected invalid runtime error")
+	}
+}
+
+func TestCheckJSRuntimeAutoSkipsDependencyLookup(t *testing.T) {
+	got, err := CheckJSRuntime("auto")
+	if err != nil {
+		t.Fatalf("unexpected error for auto runtime: %v", err)
+	}
+	if got != "auto" {
+		t.Fatalf("expected auto, got %q", got)
+	}
+}
+
+func TestCheckJSRuntimeRejectsMissingDependency(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("PATH", tmp)
+	_, err := CheckJSRuntime("node")
+	if err == nil {
+		t.Fatal("expected missing dependency error for node")
+	}
+	if !strings.Contains(err.Error(), "missing dependency") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCheckJSRuntimeQuickJSAcceptsQJSBinary(t *testing.T) {
+	tmp := t.TempDir()
+	qjs := filepath.Join(tmp, "qjs")
+	if err := os.WriteFile(qjs, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write qjs: %v", err)
+	}
+	t.Setenv("PATH", tmp)
+	got, err := CheckJSRuntime("quickjs")
+	if err != nil {
+		t.Fatalf("unexpected error for quickjs/qjs: %v", err)
+	}
+	if got != "quickjs" {
+		t.Fatalf("expected quickjs, got %q", got)
 	}
 }

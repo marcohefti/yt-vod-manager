@@ -16,6 +16,7 @@ func runDiscover(args []string) error {
 	runsDir := fs.String("runs-dir", "runs", "runs directory")
 	cookies := fs.String("cookies", "", "path to cookies.txt")
 	useBrowserCookies := fs.Bool("browser-cookies", false, browserCookiesFlagHelp)
+	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun")
 	jsonOut := fs.Bool("json", false, "print JSON output")
 
 	fs.SetOutput(flag.CommandLine.Output())
@@ -39,6 +40,7 @@ func runDiscover(args []string) error {
 		RunsDir:            *runsDir,
 		CookiesPath:        strings.TrimSpace(*cookies),
 		CookiesFromBrowser: cookiesFromBrowser,
+		JSRuntime:          firstNonEmpty(strings.TrimSpace(*jsRuntime), discovery.DefaultJSRuntime),
 	})
 	if err != nil {
 		return err
@@ -54,6 +56,7 @@ func runDiscover(args []string) error {
 	fmt.Printf("total_entries: %d\n", result.TotalEntries)
 	fmt.Printf("pending: %d\n", result.Pending)
 	fmt.Printf("skipped_private: %d\n", result.SkippedPrivate)
+	fmt.Printf("effective_js_runtime: %s\n", firstNonEmpty(strings.TrimSpace(*jsRuntime), discovery.DefaultJSRuntime))
 	return nil
 }
 
@@ -68,6 +71,7 @@ func runRefresh(args []string) error {
 	source := fs.String("source", "", "optional source URL override")
 	cookies := fs.String("cookies", "", "path to cookies.txt")
 	useBrowserCookies := fs.Bool("browser-cookies", false, browserCookiesFlagHelp)
+	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun")
 	jsonOut := fs.Bool("json", false, "print JSON output")
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args); err != nil {
@@ -106,7 +110,7 @@ func runRefresh(args []string) error {
 		SourceURL:          strings.TrimSpace(*source),
 		CookiesPath:        strings.TrimSpace(*cookies),
 		CookiesFromBrowser: cookiesFromBrowser,
-		JSRuntime:          firstNonEmpty(projectDefaults.JSRuntime, discovery.DefaultJSRuntime),
+		JSRuntime:          firstNonEmpty(strings.TrimSpace(*jsRuntime), projectDefaults.JSRuntime, discovery.DefaultJSRuntime),
 	})
 	if err != nil {
 		return err
@@ -121,6 +125,7 @@ func runRefresh(args []string) error {
 	fmt.Printf("total_entries: %d\n", res.TotalEntries)
 	fmt.Printf("pending: %d\n", res.Pending)
 	fmt.Printf("skipped_private: %d\n", res.SkippedPrivate)
+	fmt.Printf("effective_js_runtime: %s\n", firstNonEmpty(strings.TrimSpace(*jsRuntime), projectDefaults.JSRuntime, discovery.DefaultJSRuntime))
 	return nil
 }
 
@@ -140,6 +145,7 @@ func runArchive(args []string) error {
 	fragments := fs.Int("fragments", 0, "yt-dlp fragment concurrency (-N); 0 = project/default")
 	order := fs.String("order", "", "job processing order: oldest|newest|manifest")
 	quality := fs.String("quality", "", "quality preset: best|1080p|720p")
+	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun")
 	delivery := fs.String("delivery", "auto", "delivery mode: auto|fragmented")
 	progress := fs.Bool("progress", true, "show live progress renderer")
 	rawOutput := fs.Bool("raw-output", false, "print raw yt-dlp/ffmpeg output lines (verbose)")
@@ -198,7 +204,7 @@ func runArchive(args []string) error {
 	effectiveOrder := firstNonEmpty(strings.TrimSpace(*order), projectDefaults.Order, discovery.DefaultOrder)
 	effectiveQuality := firstNonEmpty(strings.TrimSpace(*quality), projectDefaults.Quality, discovery.DefaultQuality)
 	effectiveSubLangs := firstNonEmpty(strings.TrimSpace(*subLangs), projectDefaults.SubLangs, discovery.DefaultSubtitleLanguage)
-	effectiveJSRuntime := firstNonEmpty(projectDefaults.JSRuntime, discovery.DefaultJSRuntime)
+	effectiveJSRuntime := firstNonEmpty(strings.TrimSpace(*jsRuntime), projectDefaults.JSRuntime, discovery.DefaultJSRuntime)
 	effectiveDelivery := firstNonEmpty(strings.TrimSpace(*delivery), projectDefaults.DeliveryMode, "auto")
 	effectiveNoSubs, err := resolveNoSubs(strings.TrimSpace(*subtitles), projectDefaults.NoSubs)
 	if err != nil {
@@ -246,6 +252,7 @@ func runArchive(args []string) error {
 	fmt.Printf("failed_permanent: %d\n", result.FailedPermanent)
 	fmt.Printf("pending: %d\n", result.Pending)
 	fmt.Printf("skipped_private: %d\n", result.SkippedPrivate)
+	fmt.Printf("effective_js_runtime: %s\n", effectiveJSRuntime)
 	fmt.Printf("downloaded_progress: %d/%d\n", result.Completed, result.Completed+result.Pending+result.FailedRetryable+result.FailedPermanent)
 	if result.EstimatedTotalBytes > 0 {
 		fmt.Printf("estimated_size_total: %s\n", formatBytesIEC(result.EstimatedTotalBytes))

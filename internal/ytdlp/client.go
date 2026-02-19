@@ -57,6 +57,23 @@ type DependencyReport struct {
 	FFmpegPath  string `json:"ffmpeg_path,omitempty"`
 }
 
+func CheckJSRuntime(raw string) (string, error) {
+	runtime, ok := normalizeJSRuntime(raw)
+	if !ok {
+		return "", fmt.Errorf("invalid js runtime %q (expected auto, deno, node, quickjs, or bun)", strings.TrimSpace(raw))
+	}
+	if runtime == "auto" {
+		return runtime, nil
+	}
+	candidates := jsRuntimeBinaryCandidates(runtime)
+	for _, bin := range candidates {
+		if _, err := exec.LookPath(bin); err == nil {
+			return runtime, nil
+		}
+	}
+	return "", fmt.Errorf("missing dependency for js runtime %q: install one of [%s] or set js runtime to auto", runtime, strings.Join(candidates, ", "))
+}
+
 func DependencyStatus() DependencyReport {
 	report := DependencyReport{}
 	if path, err := exec.LookPath("yt-dlp"); err == nil {
@@ -285,6 +302,15 @@ func normalizeJSRuntime(raw string) (string, bool) {
 		return strings.ToLower(strings.TrimSpace(raw)), true
 	default:
 		return "", false
+	}
+}
+
+func jsRuntimeBinaryCandidates(runtime string) []string {
+	switch runtime {
+	case "quickjs":
+		return []string{"quickjs", "qjs"}
+	default:
+		return []string{runtime}
 	}
 }
 

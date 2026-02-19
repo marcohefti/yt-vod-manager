@@ -403,11 +403,15 @@ func resolveRunDir(runDir, runID, runsDir string, latest bool) (string, error) {
 }
 
 func fetchSourceManifest(sourceURL, cookiesPath, cookiesFromBrowser, jsRuntime string) (sourceManifest, error) {
+	effectiveJSRuntime, err := ytdlp.CheckJSRuntime(jsRuntime)
+	if err != nil {
+		return sourceManifest{}, err
+	}
 	raw, err := ytdlp.FlatPlaylistJSON(ytdlp.FlatPlaylistOptions{
 		SourceURL:          sourceURL,
 		CookiesPath:        cookiesPath,
 		CookiesFromBrowser: cookiesFromBrowser,
-		JSRuntime:          jsRuntime,
+		JSRuntime:          effectiveJSRuntime,
 	})
 	if err != nil {
 		return sourceManifest{}, err

@@ -23,6 +23,7 @@
 - State file writes are atomic (write temp + rename) to reduce partial-write corruption.
 - Global runtime settings are resolved once per invocation and applied uniformly.
 - Per-worker proxy mode fails fast when proxy count is lower than effective worker count.
+- JS runtime selection (`js_runtime`) is resolved deterministically (`CLI override -> project -> auto`) and validated before yt-dlp execution.
 
 ## Boundaries That Protect Reliability
 
@@ -34,7 +35,7 @@
 ## Failure Handling Contract
 
 - Retryable: transient network/rate-limit/service errors.
-- Permanent: missing dependencies, malformed/missing URL, hard yt-dlp failures.
+- Permanent: missing dependencies (including non-auto JS runtime binaries), malformed/missing URL, hard yt-dlp failures.
 - Subtitles are non-fatal and do not fail completed media downloads.
 
 ## Operational Checks

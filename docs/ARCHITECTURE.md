@@ -89,6 +89,12 @@ Runtime precedence:
 3. Global settings
 4. Built-in defaults
 
+For yt-dlp JavaScript runtime selection specifically, precedence is:
+
+1. CLI `--js-runtime`
+2. Project `js_runtime`
+3. `auto` (delegates to yt-dlp default behavior)
+
 ## Test Harness
 
 Deterministic harness coverage uses fake `yt-dlp`/`ffmpeg` binaries for:

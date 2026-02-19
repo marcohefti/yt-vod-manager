@@ -10,6 +10,7 @@
 
 - Cookie paths are resolved to absolute paths and validated before command execution.
 - `yt-dlp` invocation uses argument arrays (`exec.Command`) rather than shell interpolation.
+- JS runtime selection is allow-listed (`auto|deno|node|quickjs|bun`) before command execution.
 - Command output is bounded in memory (`appendLimited`) to avoid unbounded growth.
 - Run metadata and manifests are JSON-only local files; no remote storage writes.
 
@@ -24,6 +25,7 @@
 ## Dependency Surface
 
 - Runtime binaries: `yt-dlp`, `ffmpeg`
+- Optional runtime binaries when configured via `js_runtime`: `deno`, `node`, `quickjs`/`qjs`, `bun`
 - Go dependencies: stdlib only (current state)
 
 ## Security Maintenance
