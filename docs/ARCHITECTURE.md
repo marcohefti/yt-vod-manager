@@ -92,7 +92,7 @@ Runtime precedence:
 For yt-dlp JavaScript runtime selection specifically, precedence is:
 
 1. CLI `--js-runtime`
-2. Project `js_runtime`
+2. Project `js_runtime` (single runtime or ordered fallback list, for example `node,quickjs`)
 3. `auto` (delegates to yt-dlp default behavior)
 
 ## Test Harness

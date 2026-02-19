@@ -82,7 +82,7 @@ func runSync(args []string) error {
 	fragments := fs.Int("fragments", 0, "yt-dlp fragment concurrency (-N); 0 = project/default")
 	order := fs.String("order", "", "job processing order: oldest|newest|manifest")
 	quality := fs.String("quality", "", "quality preset: best|1080p|720p")
-	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun")
+	jsRuntime := fs.String("js-runtime", "", "JavaScript runtime override for yt-dlp extractor scripts: auto|deno|node|quickjs|bun, or ordered fallback list like node,quickjs")
 	delivery := fs.String("delivery", "", "delivery mode: auto|fragmented")
 	progress := fs.Bool("progress", true, "show live progress renderer")
 	rawOutput := fs.Bool("raw-output", false, "print raw yt-dlp/ffmpeg output lines (verbose)")

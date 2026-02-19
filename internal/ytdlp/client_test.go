@@ -39,6 +39,19 @@ func TestAppendJSRuntimeArgsNodeForcesRuntime(t *testing.T) {
 	}
 }
 
+func TestAppendJSRuntimeArgsSupportsFallbackChain(t *testing.T) {
+	args, err := appendJSRuntimeArgs([]string{"--flat-playlist"}, "node,quickjs")
+	if err != nil {
+		t.Fatalf("unexpected error for runtime chain: %v", err)
+	}
+	if len(args) != 6 {
+		t.Fatalf("expected 6 args, got %#v", args)
+	}
+	if args[1] != "--no-js-runtimes" || args[2] != "--js-runtimes" || args[3] != "node" || args[4] != "--js-runtimes" || args[5] != "quickjs" {
+		t.Fatalf("unexpected runtime chain args: %#v", args)
+	}
+}
+
 func TestAppendJSRuntimeArgsRejectsInvalidRuntime(t *testing.T) {
 	if _, err := appendJSRuntimeArgs(nil, "spidermonkey"); err == nil {
 		t.Fatal("expected invalid runtime error")
@@ -80,5 +93,21 @@ func TestCheckJSRuntimeQuickJSAcceptsQJSBinary(t *testing.T) {
 	}
 	if got != "quickjs" {
 		t.Fatalf("expected quickjs, got %q", got)
+	}
+}
+
+func TestCheckJSRuntimeChainFiltersUnavailableEntries(t *testing.T) {
+	tmp := t.TempDir()
+	qjs := filepath.Join(tmp, "qjs")
+	if err := os.WriteFile(qjs, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write qjs: %v", err)
+	}
+	t.Setenv("PATH", tmp)
+	got, err := CheckJSRuntime("node,quickjs")
+	if err != nil {
+		t.Fatalf("unexpected error for runtime chain with fallback: %v", err)
+	}
+	if got != "quickjs" {
+		t.Fatalf("expected filtered runtime list quickjs, got %q", got)
 	}
 }

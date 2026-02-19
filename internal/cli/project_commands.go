@@ -97,7 +97,7 @@ func runAddProject(args []string) error {
 	fragments := fs.Int("fragments", discovery.DefaultFragments, "default yt-dlp fragment concurrency for this project")
 	order := fs.String("order", discovery.DefaultOrder, "default order: oldest|newest|manifest")
 	quality := fs.String("quality", discovery.DefaultQuality, "quality preset: best|1080p|720p")
-	jsRuntime := fs.String("js-runtime", discovery.DefaultJSRuntime, "JavaScript runtime for yt-dlp extractor scripts: auto|deno|node|quickjs|bun (auto follows yt-dlp default)")
+	jsRuntime := fs.String("js-runtime", discovery.DefaultJSRuntime, "JavaScript runtime for yt-dlp extractor scripts: auto|deno|node|quickjs|bun, or ordered fallback list like node,quickjs (auto follows yt-dlp default)")
 	delivery := fs.String("delivery", "", "default delivery mode: auto|fragmented")
 	subtitles := fs.Bool("subtitles", true, "download subtitles by default")
 	subLangs := fs.String("sub-langs", discovery.DefaultSubtitleLanguage, "default subtitle language: english|all")

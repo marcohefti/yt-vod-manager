@@ -141,7 +141,7 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 	}
 	jsRuntime, ok := parseJSRuntime(opts.JSRuntime)
 	if !ok {
-		return AddProjectResult{}, fmt.Errorf("js runtime must be one of: auto, deno, node, quickjs, bun")
+		return AddProjectResult{}, fmt.Errorf("js runtime must be auto or a comma-separated list of: deno, node, quickjs, bun")
 	}
 	canonicalSource := normalizeSourceURL(sourceURL)
 	for _, p := range reg.Projects {
@@ -468,20 +468,42 @@ func splitAndClean(raw string) []string {
 }
 
 func parseJSRuntime(raw string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "", JSRuntimeAuto:
-		return DefaultJSRuntime, true
-	case JSRuntimeDeno:
-		return JSRuntimeDeno, true
-	case JSRuntimeNode:
-		return JSRuntimeNode, true
-	case JSRuntimeQuickJS:
-		return JSRuntimeQuickJS, true
-	case JSRuntimeBun:
-		return JSRuntimeBun, true
-	default:
+	runtimes, ok := parseJSRuntimeList(raw)
+	if !ok {
 		return "", false
 	}
+	return strings.Join(runtimes, ","), true
+}
+
+func parseJSRuntimeList(raw string) ([]string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return []string{DefaultJSRuntime}, true
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]bool, len(parts))
+	for _, p := range parts {
+		v := strings.ToLower(strings.TrimSpace(p))
+		if v == "" {
+			continue
+		}
+		if v != JSRuntimeAuto && v != JSRuntimeDeno && v != JSRuntimeNode && v != JSRuntimeQuickJS && v != JSRuntimeBun {
+			return nil, false
+		}
+		if seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return []string{DefaultJSRuntime}, true
+	}
+	if len(out) > 1 && seen[JSRuntimeAuto] {
+		return nil, false
+	}
+	return out, true
 }
 
 func suggestProjectName(sourceURL string) string {

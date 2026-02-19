@@ -95,3 +95,21 @@ func TestAddProjectRejectsInvalidJSRuntime(t *testing.T) {
 		t.Fatal("expected invalid js runtime error")
 	}
 }
+
+func TestAddProjectAcceptsJSRuntimeFallbackChain(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := tmp + "/projects.json"
+
+	res, err := AddProject(AddProjectOptions{
+		ConfigPath: cfg,
+		Name:       "runtime-chain",
+		SourceURL:  "https://example.com/src",
+		JSRuntime:  "node,quickjs",
+	})
+	if err != nil {
+		t.Fatalf("expected fallback chain to be accepted: %v", err)
+	}
+	if res.Project.JSRuntime != "node,quickjs" {
+		t.Fatalf("unexpected normalized chain: %q", res.Project.JSRuntime)
+	}
+}

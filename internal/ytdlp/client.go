@@ -58,20 +58,34 @@ type DependencyReport struct {
 }
 
 func CheckJSRuntime(raw string) (string, error) {
-	runtime, ok := normalizeJSRuntime(raw)
+	runtimes, ok := normalizeJSRuntimes(raw)
 	if !ok {
 		return "", fmt.Errorf("invalid js runtime %q (expected auto, deno, node, quickjs, or bun)", strings.TrimSpace(raw))
 	}
-	if runtime == "auto" {
-		return runtime, nil
+	if len(runtimes) == 1 && runtimes[0] == "auto" {
+		return "auto", nil
 	}
-	candidates := jsRuntimeBinaryCandidates(runtime)
-	for _, bin := range candidates {
-		if _, err := exec.LookPath(bin); err == nil {
-			return runtime, nil
+
+	available := make([]string, 0, len(runtimes))
+	missing := make([]string, 0, len(runtimes))
+	for _, runtime := range runtimes {
+		found := false
+		for _, bin := range jsRuntimeBinaryCandidates(runtime) {
+			if _, err := exec.LookPath(bin); err == nil {
+				found = true
+				break
+			}
 		}
+		if found {
+			available = append(available, runtime)
+			continue
+		}
+		missing = append(missing, runtime)
 	}
-	return "", fmt.Errorf("missing dependency for js runtime %q: install one of [%s] or set js runtime to auto", runtime, strings.Join(candidates, ", "))
+	if len(available) == 0 {
+		return "", fmt.Errorf("missing dependency for js runtime %q: install one of [%s] or set js runtime to auto", strings.Join(missing, ","), strings.Join(allRuntimeCandidates(missing), ", "))
+	}
+	return strings.Join(available, ","), nil
 }
 
 func DependencyStatus() DependencyReport {
@@ -284,25 +298,49 @@ func normalizeSubLangs(raw string) string {
 }
 
 func appendJSRuntimeArgs(args []string, rawRuntime string) ([]string, error) {
-	runtime, ok := normalizeJSRuntime(rawRuntime)
+	runtimes, ok := normalizeJSRuntimes(rawRuntime)
 	if !ok {
 		return nil, fmt.Errorf("invalid js runtime %q (expected auto, deno, node, quickjs, or bun)", strings.TrimSpace(rawRuntime))
 	}
-	if runtime == "auto" {
+	if len(runtimes) == 1 && runtimes[0] == "auto" {
 		return args, nil
 	}
-	return append(args, "--no-js-runtimes", "--js-runtimes", runtime), nil
+	args = append(args, "--no-js-runtimes")
+	for _, runtime := range runtimes {
+		args = append(args, "--js-runtimes", runtime)
+	}
+	return args, nil
 }
 
-func normalizeJSRuntime(raw string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "", "auto":
-		return "auto", true
-	case "deno", "node", "quickjs", "bun":
-		return strings.ToLower(strings.TrimSpace(raw)), true
-	default:
-		return "", false
+func normalizeJSRuntimes(raw string) ([]string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return []string{"auto"}, true
 	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]bool, len(parts))
+	for _, p := range parts {
+		v := strings.ToLower(strings.TrimSpace(p))
+		if v == "" {
+			continue
+		}
+		if v != "auto" && v != "deno" && v != "node" && v != "quickjs" && v != "bun" {
+			return nil, false
+		}
+		if seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return []string{"auto"}, true
+	}
+	if len(out) > 1 && seen["auto"] {
+		return nil, false
+	}
+	return out, true
 }
 
 func jsRuntimeBinaryCandidates(runtime string) []string {
@@ -312,6 +350,21 @@ func jsRuntimeBinaryCandidates(runtime string) []string {
 	default:
 		return []string{runtime}
 	}
+}
+
+func allRuntimeCandidates(runtimes []string) []string {
+	out := make([]string, 0, len(runtimes))
+	seen := map[string]bool{}
+	for _, runtime := range runtimes {
+		for _, candidate := range jsRuntimeBinaryCandidates(runtime) {
+			if seen[candidate] {
+				continue
+			}
+			seen[candidate] = true
+			out = append(out, candidate)
+		}
+	}
+	return out
 }
 
 func runCommand(args []string, opts DownloadOptions) error {
