@@ -38,6 +38,7 @@ type RunOptions struct {
 	RawOutput          bool
 	Order              string
 	Quality            string
+	JSRuntime          string
 	DeliveryMode       string
 }
 
@@ -307,6 +308,7 @@ func Run(opts RunOptions) (RunResult, error) {
 				LogWriter:          logFile,
 				EchoOutput:         opts.RawOutput && !dashboardEnabled,
 				Progress:           progress.Handle,
+				JSRuntime:          opts.JSRuntime,
 			})
 
 			processed.Add(1)
@@ -339,6 +341,7 @@ func Run(opts RunOptions) (RunResult, error) {
 						LogWriter:          logFile,
 						EchoOutput:         opts.RawOutput && !dashboardEnabled,
 						Progress:           progress.Handle,
+						JSRuntime:          opts.JSRuntime,
 					})
 					if subErr != nil {
 						logMu.Lock()

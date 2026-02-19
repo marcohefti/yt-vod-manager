@@ -24,6 +24,7 @@ type syncSourceItem struct {
 	Fragments          int
 	Order              string
 	Quality            string
+	JSRuntime          string
 	DeliveryMode       string
 	NoSubs             bool
 	SubLangs           string
@@ -157,6 +158,7 @@ func runSync(args []string) error {
 			RunsDir:            strings.TrimSpace(*runsDir),
 			CookiesPath:        firstNonEmpty(strings.TrimSpace(*cookies), item.CookiesPath),
 			CookiesFromBrowser: firstNonEmpty(cliCookiesFromBrowser, item.CookiesFromBrowser),
+			JSRuntime:          firstNonEmpty(item.JSRuntime, discovery.DefaultJSRuntime),
 		})
 		if err != nil {
 			failures++
@@ -229,6 +231,7 @@ func runSync(args []string) error {
 		effectiveDelivery := firstNonEmpty(strings.TrimSpace(*delivery), item.DeliveryMode, "auto")
 		effectiveOutputDir := firstNonEmpty(strings.TrimSpace(*outputDir), item.OutputDir)
 		effectiveSubLangs := firstNonEmpty(strings.TrimSpace(*subLangs), item.SubLangs, discovery.DefaultSubtitleLanguage)
+		effectiveJSRuntime := firstNonEmpty(item.JSRuntime, discovery.DefaultJSRuntime)
 		effectiveNoSubs, err := resolveNoSubs(strings.TrimSpace(*subtitles), item.NoSubs)
 		if err != nil {
 			return err
@@ -259,6 +262,7 @@ func runSync(args []string) error {
 			RawOutput:          *rawOutput,
 			Order:              effectiveOrder,
 			Quality:            effectiveQuality,
+			JSRuntime:          effectiveJSRuntime,
 			DeliveryMode:       effectiveDelivery,
 		})
 		if runErr != nil {
@@ -376,6 +380,7 @@ func collectSyncItems(singleSource, fetchlistPath, projectNames string, allProje
 				Fragments:          p.Fragments,
 				Order:              p.Order,
 				Quality:            p.Quality,
+				JSRuntime:          p.JSRuntime,
 				DeliveryMode:       p.DeliveryMode,
 				NoSubs:             p.NoSubs,
 				SubLangs:           p.SubLangs,

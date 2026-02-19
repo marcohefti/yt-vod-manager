@@ -50,6 +50,7 @@ func toggleProjectActiveCmd(configPath string, project discovery.Project) tea.Cm
 			Fragments:           project.Fragments,
 			Order:               project.Order,
 			Quality:             project.Quality,
+			JSRuntime:           project.JSRuntime,
 			DeliveryMode:        project.DeliveryMode,
 			NoSubs:              project.NoSubs,
 			SubLangs:            project.SubLangs,

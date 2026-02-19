@@ -533,6 +533,7 @@ func (m manageModel) renderDetailsPanel(width int) string {
 		lines = append(lines, kv("source", p.SourceURL))
 		lines = append(lines, kv("active", yesNo(isProjectActive(p))))
 		lines = append(lines, kv("quality", defaultIfEmpty(p.Quality, discovery.DefaultQuality)))
+		lines = append(lines, kv("js_runtime", defaultIfEmpty(p.JSRuntime, discovery.DefaultJSRuntime)))
 		lines = append(lines, kv("output_dir", defaultIfEmpty(p.OutputDir, "(run default)")))
 		lines = append(lines, kv("browser_cookies", yesNo(strings.TrimSpace(p.CookiesFromBrowser) != "")))
 		lines = append(lines, kv("cookies_file", yesNo(strings.TrimSpace(p.CookiesPath) != "")))
@@ -669,6 +670,7 @@ func newManageForm(existing *discovery.Project, width int) *manageForm {
 			{Key: "name", Label: "Project Name", Help: "Optional; leave empty for auto-name", Kind: manageFieldString},
 			{Key: "active", Label: "Active", Help: "Included in 'Sync Active Projects'", Kind: manageFieldBool, Value: "y"},
 			{Key: "quality", Label: "Quality", Help: "Best, 1080p, or 720p", Kind: manageFieldSelect, Value: discovery.DefaultQuality, Options: []string{"best", "1080p", "720p"}},
+			{Key: "js_runtime", Label: "JS Runtime", Help: "Extractor JavaScript runtime. Auto follows yt-dlp default.", Kind: manageFieldSelect, Value: discovery.DefaultJSRuntime, Options: []string{discovery.JSRuntimeAuto, discovery.JSRuntimeDeno, discovery.JSRuntimeNode, discovery.JSRuntimeQuickJS, discovery.JSRuntimeBun}},
 			{Key: "workers", Label: "Workers", Help: "Project override; 0 inherits global/default", Kind: manageFieldInt, Value: "0"},
 			{Key: "fragments", Label: "Fragments", Help: "How many chunks per video stream", Kind: manageFieldInt, Value: strconv.Itoa(discovery.DefaultFragments)},
 			{Key: "order", Label: "Download Order", Help: "Oldest first is safest for large backfills", Kind: manageFieldSelect, Value: discovery.DefaultOrder, Options: []string{"oldest", "newest", "manifest"}},
@@ -687,6 +689,7 @@ func newManageForm(existing *discovery.Project, width int) *manageForm {
 			{Key: "source", Label: "Source URL", Help: "Playlist or channel URL", Kind: manageFieldString, Required: true, Value: existing.SourceURL},
 			{Key: "active", Label: "Active", Help: "Included in 'Sync Active Projects'", Kind: manageFieldBool, Value: boolToYN(isProjectActive(*existing))},
 			{Key: "quality", Label: "Quality", Help: "Best, 1080p, or 720p", Kind: manageFieldSelect, Value: defaultIfEmpty(existing.Quality, discovery.DefaultQuality), Options: []string{"best", "1080p", "720p"}},
+			{Key: "js_runtime", Label: "JS Runtime", Help: "Extractor JavaScript runtime. Auto follows yt-dlp default.", Kind: manageFieldSelect, Value: defaultIfEmpty(existing.JSRuntime, discovery.DefaultJSRuntime), Options: []string{discovery.JSRuntimeAuto, discovery.JSRuntimeDeno, discovery.JSRuntimeNode, discovery.JSRuntimeQuickJS, discovery.JSRuntimeBun}},
 			{Key: "workers", Label: "Workers", Help: "Project override; 0 inherits global/default", Kind: manageFieldInt, Value: strconv.Itoa(existing.Workers)},
 			{Key: "fragments", Label: "Fragments", Help: "How many chunks per video stream", Kind: manageFieldInt, Value: strconv.Itoa(maxInt(existing.Fragments, discovery.DefaultFragments))},
 			{Key: "order", Label: "Download Order", Help: "Oldest first is safest for large backfills", Kind: manageFieldSelect, Value: defaultIfEmpty(existing.Order, discovery.DefaultOrder), Options: []string{"oldest", "newest", "manifest"}},
@@ -706,14 +709,6 @@ func newManageForm(existing *discovery.Project, width int) *manageForm {
 	f.Input = input
 	f.loadFieldIntoInput()
 	f.Input.Focus()
-	return f
-}
-
-func resizeFormInput(f *manageForm, width int) *manageForm {
-	if f == nil {
-		return nil
-	}
-	f.Input.Width = clampInt(width-8, 20, 120)
 	return f
 }
 
@@ -891,6 +886,7 @@ func (f *manageForm) toAddProjectOptions(configPath string) (discovery.AddProjec
 		Fragments:           fragments,
 		Order:               strings.TrimSpace(vals["order"]),
 		Quality:             strings.TrimSpace(vals["quality"]),
+		JSRuntime:           strings.TrimSpace(vals["js_runtime"]),
 		DeliveryMode:        strings.TrimSpace(vals["delivery"]),
 		NoSubs:              !subtitlesOn,
 		SubLangs:            subLangs,

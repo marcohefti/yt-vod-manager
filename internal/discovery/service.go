@@ -21,6 +21,7 @@ type Options struct {
 	RunsDir            string
 	CookiesPath        string
 	CookiesFromBrowser string
+	JSRuntime          string
 }
 
 type Result struct {
@@ -41,6 +42,7 @@ type RefreshOptions struct {
 	SourceURL          string
 	CookiesPath        string
 	CookiesFromBrowser string
+	JSRuntime          string
 }
 
 type RefreshResult struct {
@@ -60,6 +62,7 @@ type UpsertOptions struct {
 	RunsDir            string
 	CookiesPath        string
 	CookiesFromBrowser string
+	JSRuntime          string
 }
 
 type UpsertResult struct {
@@ -108,7 +111,7 @@ func Run(opts Options) (Result, error) {
 		runsDir = "runs"
 	}
 
-	src, err := fetchSourceManifest(opts.SourceURL, opts.CookiesPath, opts.CookiesFromBrowser)
+	src, err := fetchSourceManifest(opts.SourceURL, opts.CookiesPath, opts.CookiesFromBrowser, opts.JSRuntime)
 	if err != nil {
 		return Result{}, err
 	}
@@ -219,7 +222,7 @@ func Refresh(opts RefreshOptions) (RefreshResult, error) {
 		return RefreshResult{}, fmt.Errorf("refresh requires source URL in run metadata or --source")
 	}
 
-	src, err := fetchSourceManifest(sourceURL, opts.CookiesPath, opts.CookiesFromBrowser)
+	src, err := fetchSourceManifest(sourceURL, opts.CookiesPath, opts.CookiesFromBrowser, opts.JSRuntime)
 	if err != nil {
 		return RefreshResult{}, err
 	}
@@ -313,6 +316,7 @@ func UpsertBySource(opts UpsertOptions) (UpsertResult, error) {
 			RunsDir:            runsDir,
 			CookiesPath:        opts.CookiesPath,
 			CookiesFromBrowser: opts.CookiesFromBrowser,
+			JSRuntime:          opts.JSRuntime,
 		})
 		if err != nil {
 			return UpsertResult{}, err
@@ -330,6 +334,7 @@ func UpsertBySource(opts UpsertOptions) (UpsertResult, error) {
 		SourceURL:          sourceURL,
 		CookiesPath:        opts.CookiesPath,
 		CookiesFromBrowser: opts.CookiesFromBrowser,
+		JSRuntime:          opts.JSRuntime,
 	})
 	if err != nil {
 		return UpsertResult{}, err
@@ -397,11 +402,12 @@ func resolveRunDir(runDir, runID, runsDir string, latest bool) (string, error) {
 	return "", fmt.Errorf("run target not specified")
 }
 
-func fetchSourceManifest(sourceURL, cookiesPath, cookiesFromBrowser string) (sourceManifest, error) {
+func fetchSourceManifest(sourceURL, cookiesPath, cookiesFromBrowser, jsRuntime string) (sourceManifest, error) {
 	raw, err := ytdlp.FlatPlaylistJSON(ytdlp.FlatPlaylistOptions{
 		SourceURL:          sourceURL,
 		CookiesPath:        cookiesPath,
 		CookiesFromBrowser: cookiesFromBrowser,
+		JSRuntime:          jsRuntime,
 	})
 	if err != nil {
 		return sourceManifest{}, err

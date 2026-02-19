@@ -97,6 +97,7 @@ func runAddProject(args []string) error {
 	fragments := fs.Int("fragments", discovery.DefaultFragments, "default yt-dlp fragment concurrency for this project")
 	order := fs.String("order", discovery.DefaultOrder, "default order: oldest|newest|manifest")
 	quality := fs.String("quality", discovery.DefaultQuality, "quality preset: best|1080p|720p")
+	jsRuntime := fs.String("js-runtime", discovery.DefaultJSRuntime, "JavaScript runtime for yt-dlp extractor scripts: auto|deno|node|quickjs|bun (auto follows yt-dlp default)")
 	delivery := fs.String("delivery", "", "default delivery mode: auto|fragmented")
 	subtitles := fs.Bool("subtitles", true, "download subtitles by default")
 	subLangs := fs.String("sub-langs", discovery.DefaultSubtitleLanguage, "default subtitle language: english|all")
@@ -132,6 +133,7 @@ func runAddProject(args []string) error {
 		Fragments:           *fragments,
 		Order:               strings.TrimSpace(*order),
 		Quality:             strings.TrimSpace(*quality),
+		JSRuntime:           strings.TrimSpace(*jsRuntime),
 		DeliveryMode:        strings.TrimSpace(*delivery),
 		NoSubs:              !*subtitles,
 		SubLangs:            strings.TrimSpace(*subLangs),

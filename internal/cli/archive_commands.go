@@ -106,6 +106,7 @@ func runRefresh(args []string) error {
 		SourceURL:          strings.TrimSpace(*source),
 		CookiesPath:        strings.TrimSpace(*cookies),
 		CookiesFromBrowser: cookiesFromBrowser,
+		JSRuntime:          firstNonEmpty(projectDefaults.JSRuntime, discovery.DefaultJSRuntime),
 	})
 	if err != nil {
 		return err
@@ -197,6 +198,7 @@ func runArchive(args []string) error {
 	effectiveOrder := firstNonEmpty(strings.TrimSpace(*order), projectDefaults.Order, discovery.DefaultOrder)
 	effectiveQuality := firstNonEmpty(strings.TrimSpace(*quality), projectDefaults.Quality, discovery.DefaultQuality)
 	effectiveSubLangs := firstNonEmpty(strings.TrimSpace(*subLangs), projectDefaults.SubLangs, discovery.DefaultSubtitleLanguage)
+	effectiveJSRuntime := firstNonEmpty(projectDefaults.JSRuntime, discovery.DefaultJSRuntime)
 	effectiveDelivery := firstNonEmpty(strings.TrimSpace(*delivery), projectDefaults.DeliveryMode, "auto")
 	effectiveNoSubs, err := resolveNoSubs(strings.TrimSpace(*subtitles), projectDefaults.NoSubs)
 	if err != nil {
@@ -225,6 +227,7 @@ func runArchive(args []string) error {
 		RawOutput:          *rawOutput,
 		Order:              effectiveOrder,
 		Quality:            effectiveQuality,
+		JSRuntime:          effectiveJSRuntime,
 		DeliveryMode:       effectiveDelivery,
 	})
 	if err != nil {

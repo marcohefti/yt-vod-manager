@@ -23,6 +23,7 @@ type FlatPlaylistOptions struct {
 	SourceURL          string
 	CookiesPath        string
 	CookiesFromBrowser string
+	JSRuntime          string
 }
 
 type DownloadOptions struct {
@@ -42,6 +43,7 @@ type DownloadOptions struct {
 	LogWriter          io.Writer
 	EchoOutput         bool
 	Progress           func(stream OutputStream, line string)
+	JSRuntime          string
 }
 
 type DownloadResult struct {
@@ -94,6 +96,11 @@ func FlatPlaylistJSON(opts FlatPlaylistOptions) ([]byte, error) {
 	}
 	if strings.TrimSpace(opts.CookiesFromBrowser) != "" {
 		args = append(args, "--cookies-from-browser", opts.CookiesFromBrowser)
+	}
+	var err error
+	args, err = appendJSRuntimeArgs(args, opts.JSRuntime)
+	if err != nil {
+		return nil, err
 	}
 	args = append(args, opts.SourceURL)
 
@@ -159,6 +166,10 @@ func DownloadVideo(opts DownloadOptions) (DownloadResult, error) {
 	if strings.TrimSpace(opts.ProxyURL) != "" {
 		args = append(args, "--proxy", strings.TrimSpace(opts.ProxyURL))
 	}
+	args, err := appendJSRuntimeArgs(args, opts.JSRuntime)
+	if err != nil {
+		return DownloadResult{}, err
+	}
 	args = append(args, opts.VideoURL)
 
 	if err := runCommand(args, opts); err != nil {
@@ -205,6 +216,10 @@ func DownloadSubtitles(opts DownloadOptions) (DownloadResult, error) {
 	if strings.TrimSpace(opts.ProxyURL) != "" {
 		args = append(args, "--proxy", strings.TrimSpace(opts.ProxyURL))
 	}
+	args, err := appendJSRuntimeArgs(args, opts.JSRuntime)
+	if err != nil {
+		return DownloadResult{}, err
+	}
 	args = append(args, opts.VideoURL)
 
 	if err := runCommand(args, opts); err != nil {
@@ -248,6 +263,28 @@ func normalizeSubLangs(raw string) string {
 		return "all,-live_chat"
 	default:
 		return raw
+	}
+}
+
+func appendJSRuntimeArgs(args []string, rawRuntime string) ([]string, error) {
+	runtime, ok := normalizeJSRuntime(rawRuntime)
+	if !ok {
+		return nil, fmt.Errorf("invalid js runtime %q (expected auto, deno, node, quickjs, or bun)", strings.TrimSpace(rawRuntime))
+	}
+	if runtime == "auto" {
+		return args, nil
+	}
+	return append(args, "--no-js-runtimes", "--js-runtimes", runtime), nil
+}
+
+func normalizeJSRuntime(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "auto":
+		return "auto", true
+	case "deno", "node", "quickjs", "bun":
+		return strings.ToLower(strings.TrimSpace(raw)), true
+	default:
+		return "", false
 	}
 }
 

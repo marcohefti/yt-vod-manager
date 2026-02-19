@@ -35,6 +35,9 @@ func TestLoadProjectRegistryAppliesUserDefaults(t *testing.T) {
 	if p.Quality != DefaultQuality {
 		t.Fatalf("quality default mismatch: got %q want %q", p.Quality, DefaultQuality)
 	}
+	if p.JSRuntime != DefaultJSRuntime {
+		t.Fatalf("js runtime default mismatch: got %q want %q", p.JSRuntime, DefaultJSRuntime)
+	}
 	if p.SubLangs != DefaultSubtitleLanguage {
 		t.Fatalf("subLangs default mismatch: got %q want %q", p.SubLangs, DefaultSubtitleLanguage)
 	}
@@ -75,5 +78,20 @@ func TestResolveProjectSelectionFilteredActiveOnly(t *testing.T) {
 	}
 	if selected[0].Name != "active-one" {
 		t.Fatalf("expected active-one, got %q", selected[0].Name)
+	}
+}
+
+func TestAddProjectRejectsInvalidJSRuntime(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := tmp + "/projects.json"
+
+	_, err := AddProject(AddProjectOptions{
+		ConfigPath: cfg,
+		Name:       "bad-runtime",
+		SourceURL:  "https://example.com/src",
+		JSRuntime:  "spidermonkey",
+	})
+	if err == nil {
+		t.Fatal("expected invalid js runtime error")
 	}
 }

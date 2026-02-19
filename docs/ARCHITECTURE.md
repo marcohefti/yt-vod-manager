@@ -36,7 +36,7 @@ Project-first flow:
 
 2. `add` / `list` / `remove`
 - Manage named project definitions in `config/projects.json`.
-- Persist optional per-project execution overrides.
+- Persist optional per-project execution overrides, including yt-dlp JavaScript runtime selection (`js_runtime`).
 
 3. `settings`
 - Manage global runtime defaults in `config/projects.json` (`global` block).
@@ -64,7 +64,7 @@ Advanced flow remains available:
 Project registry:
 - `config/projects.json` stores:
   - `global` runtime settings (workers, proxy mode/list, download limit)
-  - per-project settings (including optional worker override where `0` means inherit)
+  - per-project settings (including optional worker override where `0` means inherit, and `js_runtime` where `auto` follows yt-dlp default behavior)
 
 Run state (per run directory):
 - `manifest.raw.json`

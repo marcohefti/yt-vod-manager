@@ -34,6 +34,7 @@ type Project struct {
 	Fragments          int    `json:"fragments,omitempty"`
 	Order              string `json:"order,omitempty"`
 	Quality            string `json:"quality,omitempty"`
+	JSRuntime          string `json:"js_runtime,omitempty"`
 	DeliveryMode       string `json:"delivery_mode,omitempty"`
 	NoSubs             bool   `json:"no_subs,omitempty"`
 	SubLangs           string `json:"sub_langs,omitempty"`
@@ -58,6 +59,7 @@ type AddProjectOptions struct {
 	Fragments           int
 	Order               string
 	Quality             string
+	JSRuntime           string
 	DeliveryMode        string
 	NoSubs              bool
 	SubLangs            string
@@ -137,6 +139,10 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 	if opts.Fragments < 0 {
 		return AddProjectResult{}, fmt.Errorf("fragments must be >= 0")
 	}
+	jsRuntime, ok := parseJSRuntime(opts.JSRuntime)
+	if !ok {
+		return AddProjectResult{}, fmt.Errorf("js runtime must be one of: auto, deno, node, quickjs, bun")
+	}
 	canonicalSource := normalizeSourceURL(sourceURL)
 	for _, p := range reg.Projects {
 		if normalizeSourceURL(p.SourceURL) == canonicalSource && !equalsFoldAndTrim(p.Name, opts.Name) {
@@ -168,6 +174,7 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 		Fragments:          opts.Fragments,
 		Order:              strings.TrimSpace(opts.Order),
 		Quality:            strings.TrimSpace(opts.Quality),
+		JSRuntime:          jsRuntime,
 		DeliveryMode:       strings.TrimSpace(opts.DeliveryMode),
 		NoSubs:             opts.NoSubs,
 		SubLangs:           strings.TrimSpace(opts.SubLangs),
@@ -186,6 +193,9 @@ func AddProject(opts AddProjectOptions) (AddProjectResult, error) {
 	}
 	if project.Quality == "" {
 		project.Quality = DefaultQuality
+	}
+	if project.JSRuntime == "" {
+		project.JSRuntime = DefaultJSRuntime
 	}
 	if project.SubLangs == "" {
 		project.SubLangs = DefaultSubtitleLanguage
@@ -383,6 +393,7 @@ func loadProjectRegistry(path string) (ProjectRegistry, error) {
 		p.CookiesFromBrowser = strings.TrimSpace(p.CookiesFromBrowser)
 		p.Order = strings.TrimSpace(p.Order)
 		p.Quality = strings.TrimSpace(p.Quality)
+		p.JSRuntime = strings.TrimSpace(p.JSRuntime)
 		p.DeliveryMode = strings.TrimSpace(p.DeliveryMode)
 		p.SubLangs = strings.TrimSpace(p.SubLangs)
 		if p.Profile == "" {
@@ -399,6 +410,11 @@ func loadProjectRegistry(path string) (ProjectRegistry, error) {
 		}
 		if p.Quality == "" {
 			p.Quality = DefaultQuality
+		}
+		if v, ok := parseJSRuntime(p.JSRuntime); ok {
+			p.JSRuntime = v
+		} else {
+			p.JSRuntime = DefaultJSRuntime
 		}
 		if p.SubLangs == "" {
 			p.SubLangs = DefaultSubtitleLanguage
@@ -449,6 +465,23 @@ func splitAndClean(raw string) []string {
 		}
 	}
 	return out
+}
+
+func parseJSRuntime(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", JSRuntimeAuto:
+		return DefaultJSRuntime, true
+	case JSRuntimeDeno:
+		return JSRuntimeDeno, true
+	case JSRuntimeNode:
+		return JSRuntimeNode, true
+	case JSRuntimeQuickJS:
+		return JSRuntimeQuickJS, true
+	case JSRuntimeBun:
+		return JSRuntimeBun, true
+	default:
+		return "", false
+	}
 }
 
 func suggestProjectName(sourceURL string) string {
