@@ -341,13 +341,14 @@ jobs:
       - name: Validate generated WinGet manifest and smoke-install
         id: winget_validate
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
           $assetFile = "winget-manifests_${env:VERSION}.zip"
-          $releaseAssetUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:RELEASE_TAG/$assetFile"
-          Invoke-WebRequest -Uri $releaseAssetUrl -OutFile $assetFile
+          gh release download "$env:RELEASE_TAG" --repo "$env:REPOSITORY" --pattern "$assetFile" --clobber
 
           if (Test-Path winget-manifests) {
             Remove-Item -Recurse -Force winget-manifests
