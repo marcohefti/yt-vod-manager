@@ -171,6 +171,11 @@ jobs:
             throw "winget validate failed for $manifestPath"
           }
 
+          winget settings --enable LocalManifestFiles
+          if ($LASTEXITCODE -ne 0) {
+            throw "failed to enable LocalManifestFiles for winget manifest install"
+          }
+
           winget install --manifest "$manifestPath" --accept-source-agreements --accept-package-agreements --disable-interactivity --silent
           if ($LASTEXITCODE -ne 0) {
             throw "winget install from manifest failed for $manifestPath"
