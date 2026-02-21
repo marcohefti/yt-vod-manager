@@ -1,25 +1,123 @@
 name: release
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version without leading v (example: 0.1.9)
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: write
   id-token: write
 
+concurrency:
+  group: release-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
 jobs:
-  publish:
+  preflight:
+    runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
-      version: ${{ steps.meta.outputs.version }}
       version_no_v: ${{ steps.meta.outputs.version_no_v }}
-      stable: ${{ steps.meta.outputs.stable }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve and validate release version
+        id: meta
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
+            echo "Release workflow must be run from main. Current ref: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+          VERSION_NO_V="${VERSION_INPUT}"
+          if [[ ! "${VERSION_NO_V}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version '${VERSION_NO_V}'. Use SemVer without leading v (example: 0.1.9)." >&2
+            exit 1
+          fi
+
+          TAG="v${VERSION_NO_V}"
+          echo "version_no_v=${VERSION_NO_V}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify readiness and CI succeeded on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          check_workflow_success() {
+            local workflow="$1"
+            local runs
+            local success_count
+
+            runs="$(gh run list --workflow "$workflow" --commit "$GITHUB_SHA" --json headSha,status,conclusion,databaseId --limit 20)"
+            success_count="$(echo "$runs" | jq --arg sha "$GITHUB_SHA" '[.[] | select(.headSha==$sha and .status=="completed" and .conclusion=="success")] | length')"
+
+            if [[ "$success_count" -lt 1 ]]; then
+              echo "No successful '$workflow' run found for commit $GITHUB_SHA." >&2
+              echo "$runs" >&2
+              exit 1
+            fi
+          }
+
+          check_workflow_success "ci"
+          check_workflow_success "release-readiness"
+
+      - name: Verify version has not been published already
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          PACKAGE_NAME: "@marcohefti/yt-vod-manager"
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Git tag ${TAG} already exists." >&2
+            exit 1
+          fi
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "GitHub release ${TAG} already exists." >&2
+            exit 1
+          fi
+
+          if npm view "${PACKAGE_NAME}@${VERSION_NO_V}" version >/dev/null 2>&1; then
+            echo "npm package ${PACKAGE_NAME}@${VERSION_NO_V} already exists." >&2
+            exit 1
+          fi
+
+          if curl -fsSL "https://raw.githubusercontent.com/marcohefti/homebrew-yt-vod-manager/main/Formula/yt-vod-manager.rb" | grep -q "version \"${VERSION_NO_V}\""; then
+            echo "Homebrew formula already references version ${VERSION_NO_V}." >&2
+            exit 1
+          fi
+
+  publish:
+    needs: preflight
+    outputs:
+      tag: ${{ needs.preflight.outputs.tag }}
+      version_no_v: ${{ needs.preflight.outputs.version_no_v }}
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.preflight.outputs.tag }}
+      VERSION_NO_V: ${{ needs.preflight.outputs.version_no_v }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,48 +127,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Resolve release metadata
-        id: meta
-        run: |
-          set -euo pipefail
-          LATEST_STABLE_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1 || true)"
-          NEXT_DEV_BASE="0.1.0"
-          if [[ -n "${LATEST_STABLE_TAG}" ]] && [[ "${LATEST_STABLE_TAG}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            major="${BASH_REMATCH[1]}"
-            minor="${BASH_REMATCH[2]}"
-            patch="${BASH_REMATCH[3]}"
-            NEXT_DEV_BASE="${major}.${minor}.$((patch + 1))"
-          fi
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-            PRERELEASE=false
-            STABLE=false
-            if [[ "${TAG}" == *-* ]]; then
-              PRERELEASE=true
-            else
-              STABLE=true
-            fi
-            NAME="${TAG}"
-            VERSION="${TAG}"
-          else
-            TAG="v${NEXT_DEV_BASE}-dev.${GITHUB_RUN_NUMBER}"
-            PRERELEASE=true
-            STABLE=false
-            NAME="${TAG}"
-            VERSION="${TAG}"
-          fi
-
-          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
-          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "version_no_v=${VERSION#v}" >> "${GITHUB_OUTPUT}"
-          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
-          echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
-          echo "stable=${STABLE}" >> "${GITHUB_OUTPUT}"
-
       - name: Build release artifacts
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
 
@@ -119,10 +176,6 @@ jobs:
           fi
 
       - name: Build WinGet manifests
-        if: ${{ steps.meta.outputs.stable == 'true' }}
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
         run: |
           set -euo pipefail
 
@@ -153,7 +206,7 @@ jobs:
 
       - name: Build release changelog
         env:
-          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -181,23 +234,21 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.name }}
+          tag_name: ${{ needs.preflight.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.preflight.outputs.tag }}
           files: dist/*
           body_path: dist/RELEASE_NOTES.md
-          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          prerelease: false
 
       - name: Setup Node for npm publish
-        if: ${{ steps.meta.outputs.stable == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: npm publish
-        if: ${{ steps.meta.outputs.stable == 'true' }}
         env:
           PACKAGE_NAME: "@marcohefti/yt-vod-manager"
-          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
         run: |
           set -euo pipefail
           if npm view "${PACKAGE_NAME}@${VERSION_NO_V}" version >/dev/null 2>&1; then
@@ -209,10 +260,7 @@ jobs:
           npm publish --provenance --access public --ignore-scripts
 
       - name: Update Homebrew tap
-        if: ${{ steps.meta.outputs.stable == 'true' }}
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          VERSION_NO_V: ${{ steps.meta.outputs.version_no_v }}
           TAP_REPO: marcohefti/homebrew-yt-vod-manager
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
@@ -244,7 +292,7 @@ jobs:
           git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" tap
           mkdir -p tap/Formula
 
-          cat > tap/Formula/yt-vod-manager.rb <<EOF
+          cat > tap/Formula/yt-vod-manager.rb <<EOF2
           class YtVodManager < Formula
             desc "CLI app to download YouTube channels and playlists and keep them up to date locally"
             homepage "https://github.com/marcohefti/yt-vod-manager"
@@ -277,7 +325,7 @@ jobs:
               assert_match "yt-vod-manager", shell_output("#{bin}/yt-vod-manager --help")
             end
           end
-          EOF
+          EOF2
 
           cd tap
           git add Formula/yt-vod-manager.rb
@@ -292,7 +340,6 @@ jobs:
 
   publish-winget:
     needs: publish
-    if: ${{ needs.publish.outputs.stable == 'true' }}
     runs-on: windows-latest
     env:
       PACKAGE_ID: MarcoHefti.YTVodManager
@@ -341,8 +388,6 @@ jobs:
       - name: Validate generated WinGet manifest and smoke-install
         id: winget_validate
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"

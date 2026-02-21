@@ -1,0 +1,177 @@
+name: release-readiness
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaging-readiness:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.meta.outputs.latest_tag }}
+      latest_no_v: ${{ steps.meta.outputs.latest_no_v }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve latest stable release tag
+        id: meta
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          LATEST_STABLE_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1 || true)"
+          if [[ -z "${LATEST_STABLE_TAG}" ]]; then
+            echo "No stable tag found. Cut an initial stable release first." >&2
+            exit 1
+          fi
+
+          echo "latest_tag=${LATEST_STABLE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "latest_no_v=${LATEST_STABLE_TAG#v}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build release artifacts (dry run)
+        env:
+          VERSION: v0.0.0-readiness.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          BIN_NAME="yt-vod-manager"
+          DIST_DIR="dist"
+          mkdir -p "${DIST_DIR}"
+
+          targets=(
+            "darwin amd64 tar.gz"
+            "darwin arm64 tar.gz"
+            "linux amd64 tar.gz"
+            "linux arm64 tar.gz"
+            "windows amd64 zip"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r GOOS GOARCH ARCHIVE <<<"${target}"
+            EXE=""
+            if [[ "${GOOS}" == "windows" ]]; then
+              EXE=".exe"
+            fi
+
+            PACKAGE_BASE="${BIN_NAME}_${VERSION}_${GOOS}_${GOARCH}"
+            STAGE_DIR="${DIST_DIR}/${PACKAGE_BASE}"
+
+            mkdir -p "${STAGE_DIR}"
+            CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" \
+              go build -trimpath -o "${STAGE_DIR}/${BIN_NAME}${EXE}" ./cmd/yt-vod-manager
+
+            cp README.md LICENSE "${STAGE_DIR}/"
+
+            if [[ "${ARCHIVE}" == "zip" ]]; then
+              (cd "${DIST_DIR}" && zip -rq "${PACKAGE_BASE}.zip" "${PACKAGE_BASE}")
+            else
+              tar -C "${DIST_DIR}" -czf "${DIST_DIR}/${PACKAGE_BASE}.tar.gz" "${PACKAGE_BASE}"
+            fi
+
+            rm -rf "${STAGE_DIR}"
+          done
+
+      - name: npm package dry-run
+        run: |
+          set -euo pipefail
+          cd packaging/npm
+          npm pack --dry-run
+
+      - name: Build WinGet manifests fixture from latest stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.meta.outputs.latest_tag }}
+          VERSION_NO_V: ${{ steps.meta.outputs.latest_no_v }}
+        run: |
+          set -euo pipefail
+
+          WINDOWS_FILE="yt-vod-manager_${RELEASE_TAG}_windows_amd64.zip"
+          WINDOWS_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${WINDOWS_FILE}"
+
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --pattern "${WINDOWS_FILE}" --clobber
+
+          sha_file() {
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$1" | awk '{print $1}'
+            else
+              shasum -a 256 "$1" | awk '{print $1}'
+            fi
+          }
+
+          WINDOWS_SHA="$(sha_file "${WINDOWS_FILE}")"
+          OUT_ROOT="readiness/winget"
+
+          ./packaging/winget/generate-manifests.sh \
+            --version "${VERSION_NO_V}" \
+            --release-tag "${RELEASE_TAG}" \
+            --installer-url "${WINDOWS_URL}" \
+            --installer-sha "${WINDOWS_SHA}" \
+            --release-date "$(date -u +%F)" \
+            --out-root "${OUT_ROOT}"
+
+      - name: Upload WinGet manifests fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests-readiness
+          path: readiness/winget/manifests
+
+      - name: Release workflow invariant checks
+        run: |
+          set -euo pipefail
+
+          if grep -Eq '^[[:space:]]*push:' .github/workflows/release.yml; then
+            echo "release.yml must be manual-only (workflow_dispatch)." >&2
+            exit 1
+          fi
+
+          grep -Eq '^[[:space:]]*workflow_dispatch:' .github/workflows/release.yml
+          grep -Fq '$assetFile = "winget-manifests_${env:RELEASE_TAG}.zip"' .github/workflows/release.yml
+          grep -Fq 'check_workflow_success "release-readiness"' .github/workflows/release.yml
+
+  winget-readiness:
+    needs: packaging-readiness
+    runs-on: windows-latest
+    env:
+      VERSION_NO_V: ${{ needs.packaging-readiness.outputs.latest_no_v }}
+    steps:
+      - name: Download WinGet manifests fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: winget-manifests-readiness
+          path: winget-manifests
+
+      - name: Validate and smoke-install manifest fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $manifestPath = Join-Path (Join-Path (Join-Path (Join-Path "winget-manifests" "m") "MarcoHefti") "YTVodManager") $env:VERSION_NO_V
+
+          if (-not (Test-Path $manifestPath)) {
+            throw "Expected manifest directory not found: $manifestPath"
+          }
+
+          winget validate --manifest "$manifestPath"
+          if ($LASTEXITCODE -ne 0) {
+            throw "winget validate failed for $manifestPath"
+          }
+
+          winget install --manifest "$manifestPath" --accept-source-agreements --accept-package-agreements --disable-interactivity --silent
+          if ($LASTEXITCODE -ne 0) {
+            throw "winget install from manifest failed for $manifestPath"
+          }

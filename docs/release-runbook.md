@@ -1,96 +1,110 @@
 # Release Runbook: yt-vod-manager
 
-Use this whenever doing releases. It documents the current stable path (`v*` tag -> release workflow -> npm/Homebrew/WinGet).
+This runbook documents the release system designed to keep stable releases predictable and low-risk.
 
-## 1) Before release
+## Release Model
 
-- Confirm local repo is clean and on the intended commit:
-  - `git status`
-  - `git fetch --all --tags --prune`
-  - `git log --oneline -n 5`
-- Confirm required secrets are available in GitHub settings:
-  - `HOMEBREW_TAP_GITHUB_TOKEN`
-  - `WINGET_CREATE_GITHUB_TOKEN`
-- Confirm release artifacts already build locally if needed (optional smoke):
-  - `go test ./...`
-  - `go run ./scripts/check_arch_boundaries.go`
-  - `./scripts/check_golden_rules.sh`
-  - `./scripts/verify.sh`
-- Confirm last release tag and next semver tag.
+There are now two separate workflows:
 
-## 2) Trigger release
+- `release-readiness` (`.github/workflows/release-readiness.yml`)
+  - Runs on `main` pushes, pull requests, and manual dispatch.
+  - Validates release-critical behavior before any stable publish.
+- `release` (`.github/workflows/release.yml`)
+  - Manual-only (`workflow_dispatch`).
+  - Publishes one explicit stable version.
+  - Hard-fails if readiness/CI are not green for the exact commit.
 
-- Create and push the stable tag:
-  - `git tag vX.Y.Z`
-  - `git push origin vX.Y.Z`
-- The push to tag `v*` triggers `.github/workflows/release.yml`.
-- Expected jobs:
-  - `publish` on `ubuntu-latest`
-  - `publish-winget` on `windows-latest` (depends on `publish`, only for stable tags)
+This separation prevents "debug by cutting more stable tags".
 
-## 3) Watch CI run and map outcomes
+## One-Time Repository Setup
 
-- Run list:
-  - `gh run list --workflow release --json databaseId,status,conclusion,headBranch,updatedAt`
-- Run details:
-  - `gh run view <run_id> --json jobs`
-- Quick status helper for the active run:
-  - `RUN=<run_id>`
-  - `gh run view "$RUN" --json status,conclusion,jobs`
+Configure branch protection on `main` so these checks are required:
 
-Green path:
-- `publish` success
-- `publish-winget` success
+- `verify` (from `ci.yml`)
+- `windows-smoke` (from `ci.yml`)
+- `packaging-readiness` (from `release-readiness.yml`)
+- `winget-readiness` (from `release-readiness.yml`)
 
-Known failure pattern encountered and fixed:
-- `wingetcreate` did not accept `--no-open` in workflow runtime.
-- Fix was to remove `--no-open` from `.github/workflows/release.yml` submit step.
+Without required checks, the release workflow still validates at runtime, but branch protection is the primary safety barrier.
 
-### Current Winget PR reality check
+## Required Secrets
 
-For this release flow, the PR is usually created automatically in `microsoft/winget-pkgs` and then enters normal upstream review.
-- It can show `REVIEW_REQUIRED` while still being technically correct.
-- It can stay `OPEN` with merge blocked until maintainer review is complete.
-- The release workflow now performs the three technical checks and updates those PR template items when a version PR is created.
-- We still cannot force maintainer merge; that remains an external dependency.
+- `HOMEBREW_TAP_GITHUB_TOKEN`
+- `WINGET_CREATE_GITHUB_TOKEN`
 
-## 4) Post-release verification
+## What `release-readiness` Verifies
 
-- GitHub release:
-  - `gh release view vX.Y.Z --json tagName,assets`
-- npm:
-  - `npm view @marcohefti/yt-vod-manager@<semver> version`
-- Homebrew tap:
-  - check `.github` action output for tap push success OR inspect formula:
-  - `curl -fsSL https://raw.githubusercontent.com/marcohefti/homebrew-yt-vod-manager/main/Formula/yt-vod-manager.rb`
-- WinGet:
-  - open PR created by bot in `microsoft/winget-pkgs`
-  - capture PR URL for release notes/changelog
+- Cross-platform release artifact build logic.
+- npm package publish surface via `npm pack --dry-run`.
+- WinGet manifest generation via `packaging/winget/generate-manifests.sh`.
+- WinGet manifest validation/install in `windows-latest` runner.
+- Release workflow invariants that guard known failure modes:
+  - release is manual-only
+  - WinGet manifest asset naming uses `RELEASE_TAG`
+  - release preflight requires successful `release-readiness`
 
-## 5) WinGet PR follow-up (human dependency)
+## Stable Release Procedure
 
-The `publish-winget` job now runs:
-- `winget validate --manifest <path>` on generated manifest
-- `winget install --manifest <path>` smoke install
-- PR body checklist sync for the 3 required items
-if the release is stable, the package exists in winget-pkgs, and version is not present.
-So the only human dependency is maintainer review/merge after that.
+1. Ensure target commit is on `main`.
+2. Wait for `ci` and `release-readiness` to pass on that exact commit SHA.
+3. Trigger `release` workflow manually from `main` with input:
+   - `version`: stable SemVer without leading `v` (example `0.1.9`).
+4. Monitor workflow run:
+   - `preflight`
+   - `publish`
+   - `publish-winget`
 
-Use this command set from this repo:
-- Find the PR:
-  - `VERSION=vX.Y.Z` (replace with the release you just cut)
-  - `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search "MarcoHefti.YTVodManager version ${VERSION}" --state open --json url --jq '.[0].url')"`
-- Confirm workflow state:
-  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,statusCheckRollup`
-- Confirm checkbox state:
-  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body | split("\n") | map(select(startswith("- [")))'`
-- If checkboxes are still unchecked due to upstream text drift, run this fallback locally:
-  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body' > /tmp/winget-pr-body.md`
-  - edit `/tmp/winget-pr-body.md` to change only the three `- [ ]` lines to `- [x]`
-  - `gh pr edit "$PR_URL" --repo microsoft/winget-pkgs --body-file /tmp/winget-pr-body.md`
-- Watch for maintainers to merge.
+## `release` Preflight Gates
 
-## 6) Suggested response when PR is waiting
+Before publishing anything, `release` enforces:
 
-- Post a short note:
-  - “Release completed (`vX.Y.Z`), release artifacts are published on GitHub/npm/Homebrew, WinGet PR is this one: `<PR URL>`. Validation/checks posted above.”
+- Workflow was started from `main`.
+- Version format is valid stable SemVer (`X.Y.Z`).
+- `ci` is green for current commit SHA.
+- `release-readiness` is green for current commit SHA.
+- Version is not already published in:
+  - git tags
+  - GitHub releases
+  - npm
+  - Homebrew tap formula
+
+If all checks pass, the workflow creates the GitHub release (and corresponding tag) from the selected commit.
+
+## Publish Behavior
+
+`release` publishes in this order:
+
+- GitHub release + artifacts
+- npm package
+- Homebrew formula update
+- WinGet update PR submission (if package exists and version is new)
+
+WinGet maintainer review and merge in `microsoft/winget-pkgs` is still external and cannot be forced.
+
+## WinGet PR Follow-Up
+
+Find current PR for a specific version:
+
+- `VERSION=0.1.9`
+- `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search "MarcoHefti.YTVodManager version ${VERSION}" --state open --json url --jq '.[0].url')"`
+
+Check status:
+
+- `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,statusCheckRollup`
+
+Check checklist lines:
+
+- `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body' | grep '^-'`
+
+If checkbox sync ever misses due upstream template wording changes:
+
+- `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body' > /tmp/winget-pr-body.md`
+- Edit only the three WinGet technical checkbox lines from `- [ ]` to `- [x]`.
+- `gh pr edit "$PR_URL" --repo microsoft/winget-pkgs --body-file /tmp/winget-pr-body.md`
+
+## Operational Rules
+
+- Never cut stable release tags manually outside the `release` workflow.
+- Never use stable versions to test release workflow fixes.
+- If `release` fails preflight, fix readiness/CI first and rerun release dispatch.
+- If `publish-winget` fails but `publish` succeeded, treat it as post-release integration work; do not publish a new stable version only to retry WinGet.
