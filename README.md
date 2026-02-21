@@ -151,6 +151,12 @@ yt-vod-manager settings set --workers 6 --download-limit-mb-s 80 --proxy-mode pe
 yt-vod-manager settings proxy add --value "http://user:pass@proxy-1:8080"
 ```
 
+- Update CLI directly from GitHub releases (useful when Winget review is pending):
+
+```bash
+yt-vod-manager self-update
+```
+
 ## Useful Options
 
 - `--workers 5` download multiple videos in parallel (default is `5`).

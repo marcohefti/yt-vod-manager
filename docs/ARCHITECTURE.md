@@ -30,6 +30,11 @@ These boundaries are enforced by:
 
 Project-first flow:
 
+0. `self-update`
+- Fetch latest (or requested) GitHub release metadata.
+- Resolve platform-specific archive asset and release checksum file.
+- Verify SHA256 before install and atomically replace/install CLI binary in user-owned path.
+
 1. `init` / `doctor`
 - Create/verify workspace paths (`runs/`, `config/projects.json`).
 - Verify runtime dependencies (`yt-dlp`, `ffmpeg`).

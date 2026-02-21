@@ -11,6 +11,7 @@
 - Cookie paths are resolved to absolute paths and validated before command execution.
 - `yt-dlp` invocation uses argument arrays (`exec.Command`) rather than shell interpolation.
 - JS runtime selection is allow-listed (`auto|deno|node|quickjs|bun`) before command execution, including ordered fallback lists.
+- `self-update` verifies release artifact SHA256 against the published checksums asset before install.
 - Command output is bounded in memory (`appendLimited`) to avoid unbounded growth.
 - Run metadata and manifests are JSON-only local files; no remote storage writes.
 

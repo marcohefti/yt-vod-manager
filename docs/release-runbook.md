@@ -79,6 +79,11 @@ If all checks pass, the workflow creates the GitHub release (and corresponding t
 - Homebrew formula update
 - WinGet update PR submission (if package exists, version is new, and no other WinGet PR is already open for this package)
 
+Fast customer channel:
+
+- Users can run `yt-vod-manager self-update` to pull the latest GitHub release directly.
+- This is independent of WinGet review latency and is the preferred path for rapid iteration.
+
 WinGet maintainer review and merge in `microsoft/winget-pkgs` is still external and cannot be forced.
 
 ## WinGet PR Follow-Up

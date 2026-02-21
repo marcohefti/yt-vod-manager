@@ -29,6 +29,8 @@ func Run(args []string) error {
 		return runManage(args[1:])
 	case "settings":
 		return runSettings(args[1:])
+	case "self-update":
+		return runSelfUpdate(args[1:])
 	case "status":
 		return runStatus(args[1:])
 	case "remove":
@@ -58,6 +60,7 @@ func printRootUsage() {
 	fmt.Println("  list      list configured projects")
 	fmt.Println("  manage    interactive project manager (wizard + editor)")
 	fmt.Println("  settings  show/update global runtime settings")
+	fmt.Println("  self-update update the CLI from GitHub Releases")
 	fmt.Println("  sync      sync project(s), source URL(s), or fetchlist")
 	fmt.Println("  status    status rollup for project(s)")
 	fmt.Println("  remove    remove a project from config")
