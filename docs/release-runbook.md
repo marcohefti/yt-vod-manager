@@ -34,6 +34,9 @@ Use this whenever doing releases. It documents the current stable path (`v*` tag
   - `gh run list --workflow release --json databaseId,status,conclusion,headBranch,updatedAt`
 - Run details:
   - `gh run view <run_id> --json jobs`
+- Quick status helper for the active run:
+  - `RUN=<run_id>`
+  - `gh run view "$RUN" --json status,conclusion,jobs`
 
 Green path:
 - `publish` success
@@ -42,6 +45,13 @@ Green path:
 Known failure pattern encountered and fixed:
 - `wingetcreate` did not accept `--no-open` in workflow runtime.
 - Fix was to remove `--no-open` from `.github/workflows/release.yml` submit step.
+
+### Current Winget PR reality check
+
+For this release flow, the PR is usually created automatically in `microsoft/winget-pkgs` and then enters normal upstream review.
+- It can show `REVIEW_REQUIRED` while still being technically correct.
+- It can stay `OPEN` with merge blocked until maintainer review is complete.
+- The three template checkboxes in that PR are not required to be completed for us by default in our repo pipeline.
 
 ## 4) Post-release verification
 
@@ -60,18 +70,20 @@ Known failure pattern encountered and fixed:
 
 The Winget submission is now auto-created, but human follow-through is still needed to get it merged.
 
-What to verify before waiting:
-- confirm the PR only touches one package path under `manifests/m/MarcoHefti/YTVodManager/0.1.5`
-- confirm no other open PR exists for the same package manifest path
-- confirm CLA check is passing in the PR status checks
-- collect and post links for any pipeline checks (validation/publish) if present
+Use this command set to close the loop from this repo side:
+- Find the PR:
+  - `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search \"MarcoHefti.YTVodManager version vX.Y.Z\" --state open --json url --jq '.[0].url')"`
+- Confirm status:
+  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,checks,statusCheckRollup`
+- Add maintainer-facing context:
+  - Post a short note that the release, npm, and Homebrew are published and include pipeline links.
 
-For local validation, run on Windows when possible:
-- `winget validate --manifest <path>`
-- `winget install --manifest <path>`
-- verify schema target is at least `1.10`
-
-If all checks are green, post a short completion note in the PR and monitor for maintainer merge.
+What’s left for full autonomy:
+- Add automated manifest checks in `.github/workflows/release.yml` before submit in `publish-winget`:
+  - run `winget validate --manifest <path-to-generated-manifests>` 
+  - run `winget install --manifest <path-to-generated-manifests>`
+- Post/update PR status in `microsoft/winget-pkgs` as evidence.
+- Note: only Microsoft maintainer review can complete merge, so upstream approval remains a manual dependency even after automated checks.
 
 ## 6) Suggested response when PR is waiting
 
