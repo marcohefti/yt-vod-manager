@@ -446,15 +446,8 @@ jobs:
           )
 
           if ($body -notlike "*Release validation performed by yt-vod-manager workflow run for $env:RELEASE_TAG*") {
-            $evidence = @"
-
-Release validation performed by yt-vod-manager workflow:
-- Version: $env:RELEASE_TAG
-- Manifest path: $env:MANIFEST_PATH
-- winget validate --manifest: passed
-- winget install --manifest: passed
-"@
-            $body = $body + "`r`n$evidence"
+            $evidence = "Release validation performed by yt-vod-manager workflow:`r`n- Version: $env:RELEASE_TAG`r`n- Manifest path: $env:MANIFEST_PATH`r`n- winget validate --manifest: passed`r`n- winget install --manifest: passed"
+            $body = $body + "`r`n" + $evidence
           }
 
           gh pr edit "$env:PR_URL" --repo microsoft/winget-pkgs --body "$body"
