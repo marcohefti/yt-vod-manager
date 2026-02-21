@@ -60,20 +60,20 @@ Known failure pattern encountered and fixed:
 
 The Winget submission is now auto-created, but human follow-through is still needed to get it merged.
 
-Checklist and ownership:
-- CLA check is external policy check, not a local checkbox.
-- For a bot-created package version update PR, close out the PR template checkboxes as follows:
-  - [x] Confirmed only one manifest is changed
-  - [x] Confirmed no other open PR for same manifest path
-  - [x] CLA check passed (when visible in checks)
-  - [ ] Manifest local validation (`winget validate --manifest <path>`) — run on Windows only when convenient
-  - [ ] Local install test (`winget install --manifest <path>`) — run on Windows only when convenient
-  - [ ] Schema adherence confirmation (`1.10`) — keep for reviewer/maintainer if not validated locally
-- Keep the PR description current with results and link the validation pipeline runs.
-- Merge path is controlled by Microsoft/Winget maintainers.
+What to verify before waiting:
+- confirm the PR only touches one package path under `manifests/m/MarcoHefti/YTVodManager/0.1.5`
+- confirm no other open PR exists for the same package manifest path
+- confirm CLA check is passing in the PR status checks
+- collect and post links for any pipeline checks (validation/publish) if present
+
+For local validation, run on Windows when possible:
+- `winget validate --manifest <path>`
+- `winget install --manifest <path>`
+- verify schema target is at least `1.10`
+
+If all checks are green, post a short completion note in the PR and monitor for maintainer merge.
 
 ## 6) Suggested response when PR is waiting
 
 - Post a short note:
   - “Release completed (`vX.Y.Z`), release artifacts are published on GitHub/npm/Homebrew, WinGet PR is this one: `<PR URL>`. Validation/checks posted above.”
-
