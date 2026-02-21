@@ -347,8 +347,17 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $assetFile = "winget-manifests_${env:VERSION}.zip"
-          gh release download "$env:RELEASE_TAG" --repo "$env:REPOSITORY" --pattern "$assetFile" --clobber
+          $assetFile = "winget-manifests_${env:RELEASE_TAG}.zip"
+          $assetUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:RELEASE_TAG/$assetFile"
+          Write-Host "Downloading manifest archive: $assetUrl"
+          Invoke-WebRequest -Uri $assetUrl -OutFile $assetFile
+
+          if (-not (Test-Path $assetFile)) {
+            throw "WinGet manifest archive was not downloaded: $assetFile"
+          }
+          if ((Get-Item $assetFile).Length -le 0) {
+            throw "WinGet manifest archive is empty: $assetFile"
+          }
 
           if (Test-Path winget-manifests) {
             Remove-Item -Recurse -Force winget-manifests
@@ -433,18 +442,12 @@ jobs:
           }
 
           $body = $pr.body
-          $body = $body.Replace(
-            "- [ ] Have you [validated](https://github.com/microsoft/winget-pkgs/blob/master/doc/Authoring.md#validation) your manifest locally with `winget validate --manifest <path>`?",
-            "- [x] Have you [validated](https://github.com/microsoft/winget-pkgs/blob/master/doc/Authoring.md#validation) your manifest locally with `winget validate --manifest <path>`?"
-          )
-          $body = $body.Replace(
-            "- [ ] Have you tested your manifest locally with `winget install --manifest <path>`?",
-            "- [x] Have you tested your manifest locally with `winget install --manifest <path>`?"
-          )
-          $body = $body.Replace(
-            "- [ ] Does your manifest conform to the [1.10 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.10.0)?",
-            "- [x] Does your manifest conform to the [1.10 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.10.0)?"
-          )
+          $validatedPattern = '(?m)^- \[ \] Have you \[validated\]\(https://github\.com/microsoft/winget-pkgs/blob/master/doc/Authoring\.md#validation\) your manifest locally with `winget validate --manifest <path>`\?$'
+          $installPattern = '(?m)^- \[ \] Have you tested your manifest locally with `winget install --manifest <path>`\?$'
+          $schemaPattern = '(?m)^- \[ \] Does your manifest conform to the \[1.10 schema\]\(https://github\.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1\.10\.0\)\?$'
+          $body = [regex]::Replace($body, $validatedPattern, '- [x] Have you [validated](https://github.com/microsoft/winget-pkgs/blob/master/doc/Authoring.md#validation) your manifest locally with `winget validate --manifest <path>`?')
+          $body = [regex]::Replace($body, $installPattern, '- [x] Have you tested your manifest locally with `winget install --manifest <path>`?')
+          $body = [regex]::Replace($body, $schemaPattern, '- [x] Does your manifest conform to the [1.10 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.10.0)?')
 
           if ($body -notlike "*Release validation performed by yt-vod-manager workflow run for $env:RELEASE_TAG*") {
             $evidence = "Release validation performed by yt-vod-manager workflow:`r`n- Version: $env:RELEASE_TAG`r`n- Manifest path: $env:MANIFEST_PATH`r`n- winget validate --manifest: passed`r`n- winget install --manifest: passed"

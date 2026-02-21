@@ -69,13 +69,25 @@ For this release flow, the PR is usually created automatically in `microsoft/win
 
 ## 5) WinGet PR follow-up (human dependency)
 
-The submission and technical checklist can be checked automatically; human follow-through is required only for merge approval.
+The `publish-winget` job now runs:
+- `winget validate --manifest <path>` on generated manifest
+- `winget install --manifest <path>` smoke install
+- PR body checklist sync for the 3 required items
+if the release is stable, the package exists in winget-pkgs, and version is not present.
+So the only human dependency is maintainer review/merge after that.
 
-Use this command set to close the loop from this repo side:
+Use this command set from this repo:
 - Find the PR:
-  - `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search \"MarcoHefti.YTVodManager version vX.Y.Z\" --state open --json url --jq '.[0].url')"`
-- Confirm status:
-  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,checks,statusCheckRollup`
+  - `VERSION=vX.Y.Z` (replace with the release you just cut)
+  - `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search "MarcoHefti.YTVodManager version ${VERSION}" --state open --json url --jq '.[0].url')"`
+- Confirm workflow state:
+  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,statusCheckRollup`
+- Confirm checkbox state:
+  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body | split("\n") | map(select(startswith("- [")))'`
+- If checkboxes are still unchecked due to upstream text drift, run this fallback locally:
+  - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json body --jq '.body' > /tmp/winget-pr-body.md`
+  - edit `/tmp/winget-pr-body.md` to change only the three `- [ ]` lines to `- [x]`
+  - `gh pr edit "$PR_URL" --repo microsoft/winget-pkgs --body-file /tmp/winget-pr-body.md`
 - Watch for maintainers to merge.
 
 ## 6) Suggested response when PR is waiting
