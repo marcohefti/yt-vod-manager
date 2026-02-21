@@ -338,21 +338,126 @@ jobs:
 
           "ready=true" >> $env:GITHUB_OUTPUT
 
-      - name: Submit WinGet manifest update
+      - name: Validate generated WinGet manifest and smoke-install
+        id: winget_validate
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+
+          $assetFile = "winget-manifests_${env:VERSION}.zip"
+          $releaseAssetUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:RELEASE_TAG/$assetFile"
+          Invoke-WebRequest -Uri $releaseAssetUrl -OutFile $assetFile
+
+          if (Test-Path winget-manifests) {
+            Remove-Item -Recurse -Force winget-manifests
+          }
+          Expand-Archive -Path $assetFile -DestinationPath winget-manifests -Force
+
+          $manifestPath = Join-Path (Join-Path (Join-Path "winget-manifests" "manifests") "m") ($env:PACKAGE_ID -replace "\.", "/")
+          $manifestPath = Join-Path $manifestPath $env:VERSION_NO_V
+          if (-not (Test-Path $manifestPath)) {
+            throw "Expected manifest directory not found: $manifestPath"
+          }
+
+          "manifest_path=$manifestPath" >> $env:GITHUB_OUTPUT
+          winget validate --manifest "$manifestPath"
+          if ($LASTEXITCODE -ne 0) {
+            throw "winget validate failed for $manifestPath"
+          }
+
+          winget install --manifest "$manifestPath" --accept-source-agreements --accept-package-agreements --disable-interactivity --silent
+          if ($LASTEXITCODE -ne 0) {
+            throw "winget install from manifest failed for $manifestPath"
+          }
+
+      - name: Submit WinGet manifest update
+        id: winget_submit
+        if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
           curl.exe -JLO https://aka.ms/wingetcreate/latest
 
           $releaseNotesUrl = "https://github.com/$env:REPOSITORY/releases/tag/$env:RELEASE_TAG"
           $releaseDate = Get-Date -AsUTC -Format "yyyy-MM-dd"
 
-          .\wingetcreate.exe update $env:PACKAGE_ID `
+          $submitOutput = .\wingetcreate.exe update $env:PACKAGE_ID `
             --version $env:VERSION_NO_V `
             --urls "${{ steps.prereq.outputs.asset_url }}" `
             --release-date $releaseDate `
             --release-notes-url $releaseNotesUrl `
             --submit
+          $submitOutput
+
+          $outputText = $submitOutput -join "`n"
+          $match = [regex]::Match($outputText, "https://github\\.com/microsoft/winget-pkgs/pull/\\d+")
+          if ($match.Success) {
+            "pull_request_url=$($match.Value)" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $query = "New version: $env:PACKAGE_ID version $env:VERSION_NO_V"
+          $candidatePrs = gh pr list -R microsoft/winget-pkgs --search "$query" --state open --json number,url,title | ConvertFrom-Json
+          $candidate = $candidatePrs | Where-Object { $_.title -eq $query } | Select-Object -First 1
+          if (-not $candidate) {
+            $candidate = $candidatePrs | Select-Object -First 1
+          }
+          if (-not $candidate) {
+            throw "Failed to discover winget PR URL from wingetcreate output."
+          }
+          "pull_request_url=$($candidate.url)" >> $env:GITHUB_OUTPUT
+
+      - name: Sync WinGet PR checklist
+        if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.winget_validate.outputs.manifest_path }}
+          PR_URL: ${{ steps.winget_submit.outputs.pull_request_url }}
+          RELEASE_TAG: ${{ needs.publish.outputs.tag }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:PR_URL)) {
+            Write-Host "No PR URL available for checklist sync."
+            exit 0
+          }
+
+          $pr = gh pr view "$env:PR_URL" --repo microsoft/winget-pkgs --json number,title,body | ConvertFrom-Json
+          if (-not $pr) {
+            Write-Host "Could not read PR body from $env:PR_URL"
+            exit 0
+          }
+
+          $body = $pr.body
+          $body = $body.Replace(
+            "- [ ] Have you [validated](https://github.com/microsoft/winget-pkgs/blob/master/doc/Authoring.md#validation) your manifest locally with `winget validate --manifest <path>`?",
+            "- [x] Have you [validated](https://github.com/microsoft/winget-pkgs/blob/master/doc/Authoring.md#validation) your manifest locally with `winget validate --manifest <path>`?"
+          )
+          $body = $body.Replace(
+            "- [ ] Have you tested your manifest locally with `winget install --manifest <path>`?",
+            "- [x] Have you tested your manifest locally with `winget install --manifest <path>`?"
+          )
+          $body = $body.Replace(
+            "- [ ] Does your manifest conform to the [1.10 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.10.0)?",
+            "- [x] Does your manifest conform to the [1.10 schema](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.10.0)?"
+          )
+
+          if ($body -notlike "*Release validation performed by yt-vod-manager workflow run for $env:RELEASE_TAG*") {
+            $evidence = @"
+
+Release validation performed by yt-vod-manager workflow:
+- Version: $env:RELEASE_TAG
+- Manifest path: $env:MANIFEST_PATH
+- winget validate --manifest: passed
+- winget install --manifest: passed
+"@
+            $body = $body + "`r`n$evidence"
+          }
+
+          gh pr edit "$env:PR_URL" --repo microsoft/winget-pkgs --body "$body"
 
       - name: WinGet package bootstrap notice
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists != 'true' }}

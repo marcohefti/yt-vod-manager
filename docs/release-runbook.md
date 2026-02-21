@@ -51,7 +51,8 @@ Known failure pattern encountered and fixed:
 For this release flow, the PR is usually created automatically in `microsoft/winget-pkgs` and then enters normal upstream review.
 - It can show `REVIEW_REQUIRED` while still being technically correct.
 - It can stay `OPEN` with merge blocked until maintainer review is complete.
-- The three template checkboxes in that PR are not required to be completed for us by default in our repo pipeline.
+- The release workflow now performs the three technical checks and updates those PR template items when a version PR is created.
+- We still cannot force maintainer merge; that remains an external dependency.
 
 ## 4) Post-release verification
 
@@ -66,24 +67,16 @@ For this release flow, the PR is usually created automatically in `microsoft/win
   - open PR created by bot in `microsoft/winget-pkgs`
   - capture PR URL for release notes/changelog
 
-## 5) WinGet PR follow-up (manual part)
+## 5) WinGet PR follow-up (human dependency)
 
-The Winget submission is now auto-created, but human follow-through is still needed to get it merged.
+The submission and technical checklist can be checked automatically; human follow-through is required only for merge approval.
 
 Use this command set to close the loop from this repo side:
 - Find the PR:
   - `PR_URL="$(gh pr list -R microsoft/winget-pkgs --search \"MarcoHefti.YTVodManager version vX.Y.Z\" --state open --json url --jq '.[0].url')"`
 - Confirm status:
   - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,checks,statusCheckRollup`
-- Add maintainer-facing context:
-  - Post a short note that the release, npm, and Homebrew are published and include pipeline links.
-
-What’s left for full autonomy:
-- Add automated manifest checks in `.github/workflows/release.yml` before submit in `publish-winget`:
-  - run `winget validate --manifest <path-to-generated-manifests>` 
-  - run `winget install --manifest <path-to-generated-manifests>`
-- Post/update PR status in `microsoft/winget-pkgs` as evidence.
-- Note: only Microsoft maintainer review can complete merge, so upstream approval remains a manual dependency even after automated checks.
+- Watch for maintainers to merge.
 
 ## 6) Suggested response when PR is waiting
 
