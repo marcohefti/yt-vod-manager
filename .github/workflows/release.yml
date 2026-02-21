@@ -350,6 +350,8 @@ jobs:
     steps:
       - name: Check WinGet submit prerequisites
         id: prereq
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         shell: pwsh
         run: |
           if ([string]::IsNullOrWhiteSpace($env:WINGET_CREATE_GITHUB_TOKEN)) {
@@ -382,6 +384,20 @@ jobs:
           } else {
             throw "Unexpected HTTP status checking WinGet version path: $versionStatus"
           }
+
+          $openPrs = gh pr list -R microsoft/winget-pkgs --state open --json number,title,url | ConvertFrom-Json
+          $openPackagePrs = @($openPrs | Where-Object {
+            $_.title -like "New version: $($env:PACKAGE_ID) version *" -or $_.title -like "Add $($env:PACKAGE_ID) version *"
+          })
+          if ($openPackagePrs.Count -gt 0) {
+            $first = $openPackagePrs | Select-Object -First 1
+            Write-Host "Open WinGet PR already exists for $env:PACKAGE_ID: $($first.url). Skipping submit to avoid parallel package PRs."
+            "open_pr_exists=true" >> $env:GITHUB_OUTPUT
+            "open_pr_url=$($first.url)" >> $env:GITHUB_OUTPUT
+            "ready=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          "open_pr_exists=false" >> $env:GITHUB_OUTPUT
 
           "ready=true" >> $env:GITHUB_OUTPUT
 
@@ -511,6 +527,12 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Run the first submission manually in microsoft/winget-pkgs, then later releases will auto-submit updates."
+
+      - name: WinGet open PR exists notice
+        if: ${{ steps.prereq.outputs.open_pr_exists == 'true' }}
+        shell: pwsh
+        run: |
+          Write-Host "Open WinGet PR detected (${{ steps.prereq.outputs.open_pr_url }}). Skipping new submit; continue using the existing PR."
 
       - name: WinGet version already exists notice
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists == 'true' && steps.prereq.outputs.version_exists == 'true' }}

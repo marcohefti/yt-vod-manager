@@ -77,7 +77,7 @@ If all checks pass, the workflow creates the GitHub release (and corresponding t
 - GitHub release + artifacts
 - npm package
 - Homebrew formula update
-- WinGet update PR submission (if package exists and version is new)
+- WinGet update PR submission (if package exists, version is new, and no other WinGet PR is already open for this package)
 
 WinGet maintainer review and merge in `microsoft/winget-pkgs` is still external and cannot be forced.
 
@@ -91,6 +91,13 @@ Find current PR for a specific version:
 Check status:
 
 - `gh pr view "$PR_URL" --repo microsoft/winget-pkgs --json state,mergeStateStatus,reviewDecision,statusCheckRollup`
+
+Check queue state before trying another WinGet submit:
+
+- `gh pr list -R microsoft/winget-pkgs --state open --search "MarcoHefti.YTVodManager" --json number,title,url`
+
+If an open PR already exists for this package, keep one PR active and do not open another.
+The `release` workflow now enforces this and skips new WinGet submit when such a PR is detected.
 
 Check checklist lines:
 
