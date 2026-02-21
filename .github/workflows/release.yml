@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Stable version without leading v (example: 0.1.9)
+        description: "Stable version without leading v (example: 0.1.9)"
         required: true
         type: string
 
