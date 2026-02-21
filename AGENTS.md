@@ -47,6 +47,7 @@ Run:
 
 - CI workflow: `.github/workflows/ci.yml`
 - Release workflow: `.github/workflows/release.yml` (triggered by `v*` tags)
+- Release playbook: `docs/release-runbook.md`
 
 ## Reference Index
 
@@ -54,3 +55,4 @@ Run:
 - [Golden Rules](docs/GOLDEN_RULES.md)
 - [Reliability](docs/RELIABILITY.md)
 - [Security](docs/SECURITY.md)
+- [Release Runbook](docs/release-runbook.md)
