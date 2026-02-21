@@ -30,29 +30,33 @@ These boundaries are enforced by:
 
 Project-first flow:
 
-0. `self-update`
+0. update hint (best-effort)
+- After successful non-JSON commands (excluding `self-update`), check latest GitHub release with cache-backed throttling.
+- If newer stable version exists, print one-line upgrade hint to stderr.
+
+1. `self-update`
 - Fetch latest (or requested) GitHub release metadata.
 - Resolve platform-specific archive asset and release checksum file.
 - Verify SHA256 before install and atomically replace/install CLI binary in user-owned path.
 
-1. `init` / `doctor`
+2. `init` / `doctor`
 - Create/verify workspace paths (`runs/`, `config/projects.json`).
 - Verify runtime dependencies (`yt-dlp`, `ffmpeg`).
 
-2. `add` / `list` / `remove`
+3. `add` / `list` / `remove`
 - Manage named project definitions in `config/projects.json`.
 - Persist optional per-project execution overrides, including yt-dlp JavaScript runtime selection (`js_runtime`).
 
-3. `settings`
+4. `settings`
 - Manage global runtime defaults in `config/projects.json` (`global` block).
 - Configure workers, per-worker proxy pool, and global MB/s download cap.
 
-4. `sync`
+5. `sync`
 - Resolve targets from project selection, source URL, or fetchlist.
 - For each source, upsert run (create or refresh by source URL).
 - Execute archive run unless `--no-run`.
 
-5. `status`
+6. `status`
 - Resolve projects.
 - Load each latest run by source URL.
 - Produce multi-project health rollup.

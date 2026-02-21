@@ -82,6 +82,8 @@ If all checks pass, the workflow creates the GitHub release (and corresponding t
 Fast customer channel:
 
 - Users can run `yt-vod-manager self-update` to pull the latest GitHub release directly.
+- CLI commands also show a periodic one-line update hint when a newer release exists.
+- Operators can disable hint checks in automation with `YTVM_DISABLE_UPDATE_CHECK=1`.
 - This is independent of WinGet review latency and is the preferred path for rapid iteration.
 
 WinGet maintainer review and merge in `microsoft/winget-pkgs` is still external and cannot be forced.

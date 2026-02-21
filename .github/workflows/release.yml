@@ -155,7 +155,7 @@ jobs:
 
             mkdir -p "${STAGE_DIR}"
             CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" \
-              go build -trimpath -o "${STAGE_DIR}/${BIN_NAME}${EXE}" ./cmd/yt-vod-manager
+              go build -trimpath -ldflags "-X yt-vod-manager/internal/version.Value=${VERSION}" -o "${STAGE_DIR}/${BIN_NAME}${EXE}" ./cmd/yt-vod-manager
 
             cp README.md LICENSE "${STAGE_DIR}/"
 

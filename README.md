@@ -157,6 +157,9 @@ yt-vod-manager settings proxy add --value "http://user:pass@proxy-1:8080"
 yt-vod-manager self-update
 ```
 
+The CLI also prints a periodic update hint after successful commands when a newer release exists.
+Set `YTVM_DISABLE_UPDATE_CHECK=1` to disable this (useful for CI/non-interactive automation).
+
 ## Useful Options
 
 - `--workers 5` download multiple videos in parallel (default is `5`).

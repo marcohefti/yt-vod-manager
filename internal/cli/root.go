@@ -8,33 +8,34 @@ func Run(args []string) error {
 		return nil
 	}
 
+	var err error
 	switch args[0] {
 	case "discover":
-		return runDiscover(args[1:])
+		err = runDiscover(args[1:])
 	case "refresh":
-		return runRefresh(args[1:])
+		err = runRefresh(args[1:])
 	case "sync":
-		return runSync(args[1:])
+		err = runSync(args[1:])
 	case "run":
-		return runArchive(args[1:])
+		err = runArchive(args[1:])
 	case "init":
-		return runInit(args[1:])
+		err = runInit(args[1:])
 	case "doctor":
-		return runDoctor(args[1:])
+		err = runDoctor(args[1:])
 	case "add":
-		return runAddProject(args[1:])
+		err = runAddProject(args[1:])
 	case "list":
-		return runListProjects(args[1:])
+		err = runListProjects(args[1:])
 	case "manage":
-		return runManage(args[1:])
+		err = runManage(args[1:])
 	case "settings":
-		return runSettings(args[1:])
+		err = runSettings(args[1:])
 	case "self-update":
-		return runSelfUpdate(args[1:])
+		err = runSelfUpdate(args[1:])
 	case "status":
-		return runStatus(args[1:])
+		err = runStatus(args[1:])
 	case "remove":
-		return runRemoveProject(args[1:])
+		err = runRemoveProject(args[1:])
 	case "help", "-h", "--help":
 		printRootUsage()
 		return nil
@@ -42,6 +43,13 @@ func Run(args []string) error {
 		printRootUsage()
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+
+	if err != nil {
+		return err
+	}
+
+	maybePrintUpdateHint(args)
+	return nil
 }
 
 func printRootUsage() {

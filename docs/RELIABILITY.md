@@ -25,6 +25,7 @@
 - Per-worker proxy mode fails fast when proxy count is lower than effective worker count.
 - JS runtime selection (`js_runtime`) is resolved deterministically (`CLI override -> project -> auto`), supports ordered fallback chains, and is validated before yt-dlp execution.
 - `self-update` installs use checksum verification and temp-file + rename replacement to avoid partial binary updates.
+- New-version hint checks use short HTTP timeout plus cache windows, so release lookups stay best-effort and low-latency.
 
 ## Boundaries That Protect Reliability
 
