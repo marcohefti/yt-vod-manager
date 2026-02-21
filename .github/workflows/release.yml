@@ -352,8 +352,7 @@ jobs:
             --urls "${{ steps.prereq.outputs.asset_url }}" `
             --release-date $releaseDate `
             --release-notes-url $releaseNotesUrl `
-            --submit `
-            --no-open
+            --submit
 
       - name: WinGet package bootstrap notice
         if: ${{ steps.prereq.outputs.ready == 'true' && steps.prereq.outputs.package_exists != 'true' }}
