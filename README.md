@@ -36,7 +36,7 @@ brew install yt-vod-manager
 WinGet:
 
 ```powershell
-winget install --id MarcoHefti.YTVodManager
+winget install --id MarcoHefti.YTVodManager; yt-vod-manager manage
 ```
 
 npm:
